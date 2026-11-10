@@ -95,3 +95,8 @@ export function dateBR(iso: string | null): string {
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}/${m}/${y}`;
 }
+
+export const AMORTIZATION: Record<string, { label: string; hint: string }> = {
+  price: { label: "Price", hint: "parcelas iguais" },
+  sac: { label: "SAC", hint: "parcelas decrescentes" },
+};

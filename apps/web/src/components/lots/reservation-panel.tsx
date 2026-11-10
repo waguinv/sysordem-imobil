@@ -15,14 +15,17 @@ import { closeReservationAction, createReservationAction } from "@/lib/actions-f
 import { createContractAction } from "@/lib/actions-fase2b";
 import { brl, dateTime, RESERVATION_STATUS, timeLeft } from "@/lib/format";
 import { api, can, type Me } from "@/lib/session";
-import type { Broker, Customer, LotDetail, Reservation } from "@/lib/types";
+import type { Broker, ContractPolicy, Customer, LotDetail, Reservation } from "@/lib/types";
 
 /** Reserva do lote: mostra a reserva ativa (cancelar / gerar contrato) ou o formulário para reservar. */
 export async function ReservationPanel({ lot, me }: { lot: LotDetail; me: Me }) {
   const manage = can(me, "reservations:manage");
 
   if (lot.active_reservation_id && can(me, "reservations:view")) {
-    const r = await api<Reservation>(`/reservations/${lot.active_reservation_id}`);
+    const [r, policy] = await Promise.all([
+      api<Reservation>(`/reservations/${lot.active_reservation_id}`),
+      can(me, "contracts:manage") ? api<ContractPolicy>("/settings/contract-policy") : Promise.resolve(null),
+    ]);
     const st = RESERVATION_STATUS[r.status]!;
     return (
       <>
@@ -76,7 +79,7 @@ export async function ReservationPanel({ lot, me }: { lot: LotDetail; me: Me }) 
             )}
           </CardContent>
         </Card>
-        {can(me, "contracts:manage") && (
+        {policy && (
           <Card>
             <CardHeader>
               <div>
@@ -89,7 +92,7 @@ export async function ReservationPanel({ lot, me }: { lot: LotDetail; me: Me }) 
             </CardHeader>
             <CardContent>
               <ActionForm action={createContractAction.bind(null, r.id, lot.id)} submitLabel="Gerar contrato">
-                <TermsFields totalHint={brl(r.price)} />
+                <TermsFields totalHint={brl(r.price)} policy={policy} />
               </ActionForm>
             </CardContent>
           </Card>

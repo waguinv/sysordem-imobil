@@ -117,7 +117,7 @@ def world(owner_engine) -> World:
     with owner_engine.begin() as c:
         c.execute(
             text(
-                "TRUNCATE contract_versions, sales_contracts, tenant_counters, "
+                "TRUNCATE contract_policies, contract_versions, sales_contracts, tenant_counters, "
                 "reservations, customers, brokers, "
                 "lot_status_history, lots, blocks, developments, land_owners, "
                 "audit_events, memberships, users, tenants CASCADE"

@@ -33,6 +33,13 @@
 - Reserva expirada não vira contrato; reserva não gera dois contratos — inclusive com duas transações simultâneas.
 - Isolamento entre empresas, RLS nas 3 tabelas e RBAC (comercial gera, só owner/admin assinam, financeiro consulta).
 
+## Implementado (política de contratos) — `tests/test_policy.py`
+- Padrão do sistema sem configuração; salvar política (auditoria com antes/depois).
+- Contrato usa os padrões da empresa (SAC, IPCA, juros) e calcula a 1ª parcela SAC; cliente pode escolher Price dentro da política.
+- Recusa: juros acima do máximo, parcelas acima do máximo, entrada abaixo do mínimo, multa alterada sem permissão, sistema não permitido.
+- Política inválida recusada; política é por empresa; só owner/admin alteram.
+- `tests/test_finance.py`: 1ª parcela SAC.
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

@@ -21,8 +21,9 @@ from sqlalchemy.orm import Session
 
 from app.models import ContractVersion, Lot, Reservation, SalesContract
 from app.services import audit
-from app.services.finance import installment_amount, money
+from app.services.finance import first_installment, money
 from app.services.lots import LotStatus, apply_status
+from app.services.policy import Policy, get_policy
 from app.services.reservations import expire_due
 
 
@@ -36,18 +37,62 @@ class ContractNotFoundError(ContractError):
 
 @dataclass(frozen=True)
 class Terms:
+    """Condições pedidas. Campos None usam o padrão da política da empresa."""
+
     total_price: Decimal | None
     down_payment: Decimal
     installments_count: int
-    interest_monthly_pct: Decimal
+    interest_monthly_pct: Decimal | None
     first_due_date: date | None
+    adjustment_index: str | None
+    late_fee_pct: Decimal | None
+    late_interest_monthly_pct: Decimal | None
+    notes: str | None
+    amortization: str | None = None
+
+
+@dataclass(frozen=True)
+class Resolved:
+    """Condições finais, já com os padrões da política aplicados e validadas."""
+
+    interest_monthly_pct: Decimal
+    amortization: str
     adjustment_index: str
     late_fee_pct: Decimal
     late_interest_monthly_pct: Decimal
-    notes: str | None
+    installment_amount: Decimal
 
 
-def _validate(t: Terms, total: Decimal) -> Decimal:
+def _resolve(t: Terms, total: Decimal, p: Policy) -> Resolved:
+    """Aplica a política da empresa (padrões e limites) e calcula a 1ª parcela."""
+    interest = p.default_interest_monthly_pct if t.interest_monthly_pct is None else t.interest_monthly_pct
+    amort = t.amortization or p.default_amortization
+    index = t.adjustment_index or p.default_adjustment_index
+    late_fee = p.late_fee_pct if t.late_fee_pct is None else t.late_fee_pct
+    late_int = (
+        p.late_interest_monthly_pct if t.late_interest_monthly_pct is None else t.late_interest_monthly_pct
+    )
+
+    _check_basic(t, total)
+    if interest > p.max_interest_monthly_pct:
+        raise ContractError(f"Juros acima do máximo da empresa ({p.max_interest_monthly_pct}% a.m.)")
+    if amort not in p.allowed_amortizations:
+        raise ContractError("Sistema de amortização não permitido pela política da empresa")
+    if t.installments_count > p.max_installments:
+        raise ContractError(f"Número de parcelas acima do máximo da empresa ({p.max_installments})")
+    if t.down_payment * 100 < total * p.min_down_payment_pct:
+        raise ContractError(f"Entrada abaixo do mínimo da empresa ({p.min_down_payment_pct}% do total)")
+    if not p.allow_override_late_charges and (
+        late_fee != p.late_fee_pct or late_int != p.late_interest_monthly_pct
+    ):
+        raise ContractError(
+            "Multa e juros de mora seguem a política da empresa e não podem ser alterados aqui"
+        )
+    amount = first_installment(total - t.down_payment, interest, t.installments_count, amort)
+    return Resolved(interest, amort, index, late_fee, late_int, amount)
+
+
+def _check_basic(t: Terms, total: Decimal) -> None:
     if total <= 0:
         raise ContractError("Valor total deve ser maior que zero")
     if t.down_payment > total:
@@ -61,7 +106,6 @@ def _validate(t: Terms, total: Decimal) -> Decimal:
         raise ContractError("Informe o vencimento da 1ª parcela")
     if t.first_due_date is not None and t.first_due_date < datetime.now(UTC).date():
         raise ContractError("Vencimento da 1ª parcela não pode estar no passado")
-    return installment_amount(balance, t.interest_monthly_pct, t.installments_count)
 
 
 def _next_number(db: Session, tenant_id: uuid.UUID) -> str:
@@ -86,7 +130,7 @@ def _add_version(
     actor: uuid.UUID,
     reason: str | None,
 ) -> ContractVersion:
-    amount = _validate(t, total)
+    r = _resolve(t, total, get_policy(db, c.tenant_id))
     v = ContractVersion(
         tenant_id=c.tenant_id,
         contract_id=c.id,
@@ -94,12 +138,13 @@ def _add_version(
         total_price=money(total),
         down_payment=money(t.down_payment),
         installments_count=t.installments_count,
-        installment_amount=amount,
-        interest_monthly_pct=t.interest_monthly_pct,
+        installment_amount=r.installment_amount,
+        amortization=r.amortization,
+        interest_monthly_pct=r.interest_monthly_pct,
         first_due_date=t.first_due_date if t.installments_count else None,
-        adjustment_index=t.adjustment_index,
-        late_fee_pct=t.late_fee_pct,
-        late_interest_monthly_pct=t.late_interest_monthly_pct,
+        adjustment_index=r.adjustment_index,
+        late_fee_pct=r.late_fee_pct,
+        late_interest_monthly_pct=r.late_interest_monthly_pct,
         notes=t.notes,
         reason=reason,
         created_by=actor,
@@ -132,7 +177,7 @@ def create_from_reservation(
         raise ContractError(f"Reserva não está ativa (situação: {res.status})")
 
     total = terms.total_price if terms.total_price is not None else res.price
-    _validate(terms, total)  # falha antes de consumir número de contrato
+    _resolve(terms, total, get_policy(db, tenant_id))  # falha antes de consumir número de contrato
     c = SalesContract(
         tenant_id=tenant_id,
         number=_next_number(db, tenant_id),

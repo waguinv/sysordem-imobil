@@ -105,6 +105,7 @@ export type ContractTerms = {
   down_payment: string;
   installments_count: number;
   installment_amount: string;
+  amortization: "price" | "sac";
   interest_monthly_pct: string;
   first_due_date: string | null;
   adjustment_index: string;
@@ -137,3 +138,17 @@ export type Contract = {
 };
 
 export type ContractDetail = Contract & { versions: ContractTerms[] };
+
+export type ContractPolicy = {
+  default_interest_monthly_pct: string;
+  max_interest_monthly_pct: string;
+  default_amortization: "price" | "sac";
+  allowed_amortizations: ("price" | "sac")[];
+  default_adjustment_index: string;
+  late_fee_pct: string;
+  late_interest_monthly_pct: string;
+  max_installments: number;
+  min_down_payment_pct: string;
+  allow_override_late_charges: boolean;
+  is_default: boolean;
+};

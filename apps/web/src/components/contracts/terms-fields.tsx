@@ -1,7 +1,7 @@
 import { Field, selectClass } from "@/components/ui/action-form";
 import { Input } from "@/components/ui/primitives";
-import { ADJUSTMENT_INDEX } from "@/lib/format";
-import type { ContractTerms } from "@/lib/types";
+import { ADJUSTMENT_INDEX, AMORTIZATION, pct } from "@/lib/format";
+import type { ContractPolicy, ContractTerms } from "@/lib/types";
 
 const br = (v: string | null | undefined) => (v == null ? "" : v.replace(".", ","));
 
@@ -11,8 +11,20 @@ function defaultDue(): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Campos das condições do contrato (entrada, parcelas, juros, correção, multa). */
-export function TermsFields({ initial, totalHint }: { initial?: ContractTerms; totalHint: string }) {
+/**
+ * Condições do contrato. Os padrões e limites vêm da política da empresa; dentro deles, empresa e
+ * cliente escolhem entrada, parcelas, juros e o sistema (Price ou SAC).
+ */
+export function TermsFields({
+  initial,
+  totalHint,
+  policy,
+}: {
+  initial?: ContractTerms;
+  totalHint: string;
+  policy: ContractPolicy;
+}) {
+  const overrideLate = policy.allow_override_late_charges;
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
@@ -25,7 +37,10 @@ export function TermsFields({ initial, totalHint }: { initial?: ContractTerms; t
             placeholder={totalHint}
           />
         </Field>
-        <Field label="Entrada (R$)" htmlFor="down_payment">
+        <Field
+          label={`Entrada (R$)${Number(policy.min_down_payment_pct) > 0 ? ` — mín. ${pct(policy.min_down_payment_pct)}` : ""}`}
+          htmlFor="down_payment"
+        >
           <Input
             id="down_payment"
             name="down_payment"
@@ -34,15 +49,43 @@ export function TermsFields({ initial, totalHint }: { initial?: ContractTerms; t
             required
           />
         </Field>
-        <Field label="Nº de parcelas (0 = à vista)" htmlFor="installments_count">
+        <Field
+          label={`Nº de parcelas (0 = à vista; máx. ${policy.max_installments})`}
+          htmlFor="installments_count"
+        >
           <Input
             id="installments_count"
             name="installments_count"
             type="number"
             min={0}
-            max={480}
-            defaultValue={initial?.installments_count ?? 120}
+            max={policy.max_installments}
+            defaultValue={initial?.installments_count ?? Math.min(120, policy.max_installments)}
             required
+          />
+        </Field>
+        <Field label="Sistema de amortização" htmlFor="amortization">
+          <select
+            id="amortization"
+            name="amortization"
+            className={selectClass}
+            defaultValue={initial?.amortization ?? policy.default_amortization}
+          >
+            {policy.allowed_amortizations.map((a) => (
+              <option key={a} value={a}>
+                {AMORTIZATION[a]?.label} ({AMORTIZATION[a]?.hint})
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field
+          label={`Juros (% a.m.; máx. ${pct(policy.max_interest_monthly_pct)})`}
+          htmlFor="interest_monthly_pct"
+        >
+          <Input
+            id="interest_monthly_pct"
+            name="interest_monthly_pct"
+            inputMode="decimal"
+            defaultValue={br(initial?.interest_monthly_pct ?? policy.default_interest_monthly_pct)}
           />
         </Field>
         <Field label="1º vencimento" htmlFor="first_due_date">
@@ -53,20 +96,12 @@ export function TermsFields({ initial, totalHint }: { initial?: ContractTerms; t
             defaultValue={initial?.first_due_date ?? defaultDue()}
           />
         </Field>
-        <Field label="Juros (% a.m.)" htmlFor="interest_monthly_pct">
-          <Input
-            id="interest_monthly_pct"
-            name="interest_monthly_pct"
-            inputMode="decimal"
-            defaultValue={br(initial?.interest_monthly_pct ?? "0")}
-          />
-        </Field>
         <Field label="Correção" htmlFor="adjustment_index">
           <select
             id="adjustment_index"
             name="adjustment_index"
             className={selectClass}
-            defaultValue={initial?.adjustment_index ?? "nenhum"}
+            defaultValue={initial?.adjustment_index ?? policy.default_adjustment_index}
           >
             {Object.entries(ADJUSTMENT_INDEX).map(([v, l]) => (
               <option key={v} value={v}>
@@ -75,29 +110,38 @@ export function TermsFields({ initial, totalHint }: { initial?: ContractTerms; t
             ))}
           </select>
         </Field>
-        <Field label="Multa por atraso (%)" htmlFor="late_fee_pct">
-          <Input
-            id="late_fee_pct"
-            name="late_fee_pct"
-            inputMode="decimal"
-            defaultValue={br(initial?.late_fee_pct ?? "2.00")}
-          />
-        </Field>
-        <Field label="Juros de mora (% a.m.)" htmlFor="late_interest_monthly_pct">
-          <Input
-            id="late_interest_monthly_pct"
-            name="late_interest_monthly_pct"
-            inputMode="decimal"
-            defaultValue={br(initial?.late_interest_monthly_pct ?? "1.00")}
-          />
-        </Field>
+        {overrideLate ? (
+          <>
+            <Field label="Multa por atraso (%)" htmlFor="late_fee_pct">
+              <Input
+                id="late_fee_pct"
+                name="late_fee_pct"
+                inputMode="decimal"
+                defaultValue={br(initial?.late_fee_pct ?? policy.late_fee_pct)}
+              />
+            </Field>
+            <Field label="Juros de mora (% a.m.)" htmlFor="late_interest_monthly_pct">
+              <Input
+                id="late_interest_monthly_pct"
+                name="late_interest_monthly_pct"
+                inputMode="decimal"
+                defaultValue={br(initial?.late_interest_monthly_pct ?? policy.late_interest_monthly_pct)}
+              />
+            </Field>
+          </>
+        ) : (
+          <div className="text-muted-foreground self-end text-xs sm:col-span-2">
+            Multa {pct(policy.late_fee_pct)} e juros de mora {pct(policy.late_interest_monthly_pct)} a.m. —
+            definidos pela política da empresa.
+          </div>
+        )}
       </div>
       <Field label="Observações" htmlFor="notes">
         <Input id="notes" name="notes" defaultValue={initial?.notes ?? ""} maxLength={4000} />
       </Field>
       <p className="text-muted-foreground text-xs">
-        Juros, multa e correção são configuráveis e devem ser validados por profissional habilitado. A parcela
-        é calculada pelo servidor (Tabela Price quando há juros).
+        A 1ª parcela é calculada pelo servidor (Price: parcelas iguais; SAC: a 1ª é a maior e as demais
+        diminuem). Juros, multa e correção devem ser validados por profissional habilitado.
       </p>
     </div>
   );

@@ -280,7 +280,8 @@ class ContractVersion(Base):
     total_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     down_payment: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     installments_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    installment_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    installment_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)  # SAC: 1ª parcela
+    amortization: Mapped[str] = mapped_column(String(10), nullable=False, default="price")
     interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
     first_due_date: Mapped[date | None] = mapped_column(Date)
     adjustment_index: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -290,3 +291,25 @@ class ContractVersion(Base):
     reason: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[datetime] = _created_at()
+
+
+class ContractPolicy(Base):
+    """Política de contratos de cada empresa: padrões e limites que valem para novos contratos/versões."""
+
+    __tablename__ = "contract_policies"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), primary_key=True
+    )
+    default_interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    max_interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    default_amortization: Mapped[str] = mapped_column(String(10), nullable=False)
+    allowed_amortizations: Mapped[str] = mapped_column(String(40), nullable=False)  # "price,sac"
+    default_adjustment_index: Mapped[str] = mapped_column(String(10), nullable=False)
+    late_fee_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    late_interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    max_installments: Mapped[int] = mapped_column(Integer, nullable=False)
+    min_down_payment_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    allow_override_late_charges: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))

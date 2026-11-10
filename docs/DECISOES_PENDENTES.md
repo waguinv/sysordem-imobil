@@ -14,6 +14,6 @@
 13. Validade padrão da reserva (adotado: 72 h; máx. 30 dias) — confirmar e definir se varia por empreendimento.
 14. Reserva exige sinal/pagamento? Hoje é só bloqueio com prazo; sinal entra com o financeiro (Fase 3).
 15. Corretor deve ver/reservar só os próprios clientes (proposta para a Fase 2b) ou todos os lotes/clientes da empresa?
-16. Contratos: multa padrão 2% e juros de mora 1% a.m. (hipóteses) — validar com jurídico/contábil; índices de correção aceitos e periodicidade de reajuste.
-17. Juros de financiamento: Tabela Price (adotada) ou SAC? Ajuste de centavos na última parcela (adotado para a Fase 3).
-18. Assinatura: hoje é registro manual (quem registrou e quando); definir provedor de assinatura eletrônica.
+16. ~~Política de juros~~ **Decidido:** cada empresa configura sua política (padrões e limites) em Configurações → Política de contratos. Padrões do sistema (multa 2%, mora 1% a.m.) seguem como hipótese a validar com jurídico/contábil.
+17. ~~Price ou SAC~~ **Decidido:** a empresa define os sistemas permitidos e o padrão; em cada contrato, empresa e cliente escolhem. Ajuste de centavos na última parcela (adotado para a Fase 3).
+18. Assinatura eletrônica gratuita e integrável — **recomendação: Documenso (Community Edition, open source AGPL-3.0, auto-hospedado, com API e webhooks)**, rodando junto no Docker Compose. Alternativas SaaS com plano grátis (ZapSign, Autentique) limitam documentos/mês e, pelas fontes consultadas, exigem plano pago para usar a API em produção. Confirmar a escolha e validar com jurídico o tipo de assinatura exigido (eletrônica avançada × ICP-Brasil) para o registro dos contratos.

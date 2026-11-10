@@ -1,6 +1,7 @@
 """Fase 2b: contratos de venda."""
 
 import uuid
+from dataclasses import asdict
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal
@@ -13,24 +14,27 @@ from app.auth.deps import AuthContext, require
 from app.auth.rbac import Perm
 from app.models import Block, Broker, ContractVersion, Customer, Development, Lot, SalesContract
 from app.services import contracts as svc
+from app.services import policy as policy_svc
 
 router = APIRouter(tags=["contratos"])
 
 Money = Annotated[Decimal, Field(ge=0, max_digits=14, decimal_places=2)]
 Pct = Annotated[Decimal, Field(ge=0, le=10, max_digits=7, decimal_places=4)]
 Index = Literal["nenhum", "IPCA", "IGPM", "INCC"]
+Amortization = Literal["price", "sac"]
 
 
 class TermsIn(BaseModel):
     total_price: Money | None = None  # padrão: preço congelado na reserva / versão anterior
     down_payment: Money
     installments_count: int = Field(ge=0, le=480)
-    interest_monthly_pct: Pct = Decimal("0")
+    # Campos opcionais: quando omitidos, valem os padrões da política da empresa.
+    interest_monthly_pct: Pct | None = None
+    amortization: Amortization | None = None
     first_due_date: date | None = None
-    adjustment_index: Index = "nenhum"
-    # Hipóteses padrão (validar com profissional habilitado): multa 2%, juros de mora 1% a.m.
-    late_fee_pct: Annotated[Decimal, Field(ge=0, le=10, decimal_places=2)] = Decimal("2.00")
-    late_interest_monthly_pct: Annotated[Decimal, Field(ge=0, le=10, decimal_places=2)] = Decimal("1.00")
+    adjustment_index: Index | None = None
+    late_fee_pct: Annotated[Decimal, Field(ge=0, le=10, decimal_places=2)] | None = None
+    late_interest_monthly_pct: Annotated[Decimal, Field(ge=0, le=10, decimal_places=2)] | None = None
     notes: str | None = Field(default=None, max_length=4000)
 
     def to_terms(self) -> svc.Terms:
@@ -61,7 +65,8 @@ class VersionOut(BaseModel):
     total_price: Decimal
     down_payment: Decimal
     installments_count: int
-    installment_amount: Decimal
+    installment_amount: Decimal  # SAC: valor da 1ª parcela (as seguintes diminuem)
+    amortization: str
     interest_monthly_pct: Decimal
     first_due_date: date | None
     adjustment_index: str
@@ -255,3 +260,64 @@ def cancel_contract(
     except svc.ContractError as e:
         raise _business(e) from None
     return _detail(ctx, contract_id)
+
+
+# ─────────────────────────── política de contratos da empresa ───────────────────────────
+
+
+class PolicyOut(BaseModel):
+    default_interest_monthly_pct: Decimal
+    max_interest_monthly_pct: Decimal
+    default_amortization: str
+    allowed_amortizations: list[str]
+    default_adjustment_index: str
+    late_fee_pct: Decimal
+    late_interest_monthly_pct: Decimal
+    max_installments: int
+    min_down_payment_pct: Decimal
+    allow_override_late_charges: bool
+    is_default: bool
+
+
+class PolicyIn(BaseModel):
+    default_interest_monthly_pct: Pct
+    max_interest_monthly_pct: Pct
+    default_amortization: Amortization
+    allowed_amortizations: list[Amortization] = Field(min_length=1, max_length=2)
+    default_adjustment_index: Index
+    late_fee_pct: Annotated[Decimal, Field(ge=0, le=10, decimal_places=2)]
+    late_interest_monthly_pct: Annotated[Decimal, Field(ge=0, le=10, decimal_places=2)]
+    max_installments: int = Field(ge=0, le=480)
+    min_down_payment_pct: Annotated[Decimal, Field(ge=0, le=100, decimal_places=2)]
+    allow_override_late_charges: bool = False
+    reason: str = Field(min_length=3, max_length=500)
+
+
+def _policy_out(p: policy_svc.Policy) -> PolicyOut:
+    d = asdict(p)
+    d["allowed_amortizations"] = list(p.allowed_amortizations)
+    return PolicyOut(**d)
+
+
+@router.get("/settings/contract-policy", response_model=PolicyOut)
+def get_contract_policy(ctx: AuthContext = Depends(require(Perm.CONTRACTS_VIEW))) -> PolicyOut:
+    return _policy_out(policy_svc.get_policy(ctx.db, ctx.tenant_id))
+
+
+@router.put("/settings/contract-policy", response_model=PolicyOut)
+def put_contract_policy(
+    body: PolicyIn, ctx: AuthContext = Depends(require(Perm.SETTINGS_MANAGE))
+) -> PolicyOut:
+    data = body.model_dump(exclude={"reason"})
+    data["allowed_amortizations"] = tuple(dict.fromkeys(data["allowed_amortizations"]))
+    try:
+        saved = policy_svc.save_policy(
+            ctx.db,
+            ctx.tenant_id,
+            policy_svc.Policy(**data, is_default=False),
+            actor=ctx.user.id,
+            reason=body.reason,
+        )
+    except policy_svc.PolicyError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+    return _policy_out(saved)

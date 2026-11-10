@@ -42,6 +42,14 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Permissões: `contracts:view` (owner/admin/comercial/financeiro), `contracts:manage` (owner/admin/comercial), `contracts:sign` (owner/admin).
 - Web: lista de contratos com filtros, tela do contrato (condições, versões, assinar, cancelar, nova versão) e "Gerar contrato" na reserva ativa do lote.
 
+## Política de contratos por empresa (Fase 2b)
+- Tabela `contract_policies` (RLS, uma linha por empresa; migration `0005`). Sem linha salva, valem os padrões do sistema (`app/services/policy.py`).
+- A empresa define **padrões** (juros do financiamento, sistema de amortização, índice de correção, multa, juros de mora) e **limites** (juros máximo, sistemas permitidos — Price e/ou SAC —, nº máximo de parcelas, entrada mínima) e se multa/mora podem ser negociadas por contrato.
+- Em cada contrato, **empresa e cliente escolhem** entrada, parcelas, juros e Price/SAC dentro dos limites; campos omitidos usam o padrão da empresa. Fora da política → 409 com a regra violada.
+- `contract_versions.amortization` registra o sistema escolhido; `installment_amount` é a parcela (Price) ou a 1ª parcela (SAC: P/n + P·i, decrescentes).
+- `GET /settings/contract-policy` (quem vê contratos) e `PUT` (`settings:manage`: owner/admin), auditado com antes/depois e motivo. Alterar a política não muda contratos existentes.
+- Web: Configurações → Política de contratos; o formulário do contrato mostra os padrões e limites da empresa.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

@@ -34,6 +34,7 @@ class Perm(StrEnum):
     CONTRACTS_VIEW = "contracts:view"
     CONTRACTS_MANAGE = "contracts:manage"
     CONTRACTS_SIGN = "contracts:sign"
+    SETTINGS_MANAGE = "settings:manage"
 
 
 _ALL = frozenset(Perm)

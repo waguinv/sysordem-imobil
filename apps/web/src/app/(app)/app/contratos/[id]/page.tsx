@@ -16,7 +16,7 @@ import {
 import { cancelContractAction, newVersionAction, signContractAction } from "@/lib/actions-fase2b";
 import { ADJUSTMENT_INDEX, brl, CONTRACT_STATUS, dateBR, dateTime, pct } from "@/lib/format";
 import { api, ApiError, can, getMe } from "@/lib/session";
-import type { ContractDetail, ContractTerms } from "@/lib/types";
+import type { ContractDetail, ContractPolicy, ContractTerms } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Contrato" };
 
@@ -26,7 +26,11 @@ function TermsSummary({ t }: { t: ContractTerms }) {
     ["Entrada", brl(t.down_payment)],
     [
       "Parcelas",
-      t.installments_count === 0 ? "À vista" : `${t.installments_count}× de ${brl(t.installment_amount)}`,
+      t.installments_count === 0
+        ? "À vista"
+        : t.amortization === "sac"
+          ? `${t.installments_count}× (SAC), 1ª de ${brl(t.installment_amount)}`
+          : `${t.installments_count}× de ${brl(t.installment_amount)} (Price)`,
     ],
     ["1º vencimento", dateBR(t.first_due_date)],
     ["Juros", `${pct(t.interest_monthly_pct)} a.m.`],
@@ -50,8 +54,12 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const me = await getMe();
   let c: ContractDetail;
+  let policy: ContractPolicy;
   try {
-    c = await api<ContractDetail>(`/contracts/${encodeURIComponent(id)}`);
+    [c, policy] = await Promise.all([
+      api<ContractDetail>(`/contracts/${encodeURIComponent(id)}`),
+      api<ContractPolicy>("/settings/contract-policy"),
+    ]);
   } catch (e) {
     if (e instanceof ApiError && (e.status === 404 || e.status === 422 || e.status === 403)) notFound();
     throw e;
@@ -162,7 +170,7 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
               action={newVersionAction.bind(null, c.id, c.current_version)}
               submitLabel="Salvar nova versão"
             >
-              <TermsFields initial={c.terms} totalHint={brl(c.terms.total_price)} />
+              <TermsFields initial={c.terms} totalHint={brl(c.terms.total_price)} policy={policy} />
               <Field label="Motivo da alteração" htmlFor="version-reason">
                 <Input id="version-reason" name="reason" required minLength={3} maxLength={500} />
               </Field>

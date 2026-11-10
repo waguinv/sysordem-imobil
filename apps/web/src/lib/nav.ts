@@ -90,6 +90,11 @@ export const NAV: NavEntry[] = [
     icon: Settings,
     items: [
       { title: "Equipe e acessos", href: "/app/equipe", icon: Users, permission: "members:view" },
+      {
+        title: "Política de contratos",
+        href: "/app/configuracoes/politica-contratos",
+        permission: "settings:manage",
+      },
       { title: "Empresa", href: "/app/empresa", icon: Building2, permission: "tenant:view", soon: "Fase 5" },
     ],
   },

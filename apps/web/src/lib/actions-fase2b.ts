@@ -26,11 +26,13 @@ function terms(f: FormData) {
     total_price: num(f, "total_price", "Valor total", 2, true),
     down_payment: num(f, "down_payment", "Entrada"),
     installments_count: n,
-    interest_monthly_pct: num(f, "interest_monthly_pct", "Juros", 4),
+    interest_monthly_pct: num(f, "interest_monthly_pct", "Juros", 4, true),
+    amortization: str(f, "amortization") || null,
     first_due_date: n > 0 ? str(f, "first_due_date") || null : null,
-    adjustment_index: str(f, "adjustment_index") || "nenhum",
-    late_fee_pct: num(f, "late_fee_pct", "Multa"),
-    late_interest_monthly_pct: num(f, "late_interest_monthly_pct", "Juros de mora"),
+    adjustment_index: str(f, "adjustment_index") || null,
+    // ausentes quando a política não permite alterar: o servidor aplica os da empresa
+    late_fee_pct: num(f, "late_fee_pct", "Multa", 2, true),
+    late_interest_monthly_pct: num(f, "late_interest_monthly_pct", "Juros de mora", 2, true),
     notes: str(f, "notes") || null,
   };
 }
@@ -110,5 +112,31 @@ export async function cancelContractAction(
     await api(`/contracts/${contractId}/cancel`, { method: "POST", body: JSON.stringify({ reason }) });
     revalidatePath(`/app/contratos/${contractId}`);
     return { ok: "Contrato cancelado" };
+  });
+}
+
+export async function savePolicyAction(_p: FormState, f: FormData): Promise<FormState> {
+  const reason = str(f, "reason");
+  if (reason.length < 3) return { error: "Informe o motivo da alteração (mín. 3 caracteres)." };
+  const allowed = f.getAll("allowed_amortizations").map(String);
+  return guard(async () => {
+    await api("/settings/contract-policy", {
+      method: "PUT",
+      body: JSON.stringify({
+        default_interest_monthly_pct: num(f, "default_interest_monthly_pct", "Juros padrão", 4),
+        max_interest_monthly_pct: num(f, "max_interest_monthly_pct", "Juros máximo", 4),
+        default_amortization: str(f, "default_amortization"),
+        allowed_amortizations: allowed,
+        default_adjustment_index: str(f, "default_adjustment_index"),
+        late_fee_pct: num(f, "late_fee_pct", "Multa"),
+        late_interest_monthly_pct: num(f, "late_interest_monthly_pct", "Juros de mora"),
+        max_installments: Number(str(f, "max_installments") || "0"),
+        min_down_payment_pct: num(f, "min_down_payment_pct", "Entrada mínima"),
+        allow_override_late_charges: f.get("allow_override_late_charges") === "on",
+        reason,
+      }),
+    });
+    revalidatePath("/app/configuracoes/politica-contratos");
+    return { ok: "Política salva. Vale para novos contratos e novas versões." };
   });
 }

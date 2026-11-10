@@ -38,3 +38,15 @@ def test_invalid_inputs():
         installment_amount(D("-1"), D("0"), 1)
     with pytest.raises(ValueError):
         installment_amount(D("10"), D("0"), -1)
+
+
+def test_sac_first_installment():
+    from app.services.finance import first_installment, first_installment_sac
+
+    # 120.000 em 120x a 1% a.m.: amortização 1.000 + juros 1.200 = 2.200 na 1ª parcela
+    assert first_installment_sac(D("120000.00"), D("1"), 120) == D("2200.00")
+    assert first_installment(D("120000.00"), D("0"), 120, "sac") == D("1000.00")
+    assert first_installment(D("100000.00"), D("1"), 12, "price") == D("8884.88")
+    assert first_installment(D("0"), D("0"), 0, "sac") == D("0.00")  # à vista
+    with pytest.raises(ValueError):
+        first_installment_sac(D("10"), D("1"), 0)
