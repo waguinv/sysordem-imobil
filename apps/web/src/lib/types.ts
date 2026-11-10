@@ -28,7 +28,12 @@ export type Lot = {
   notes: string | null;
 };
 
-export type LotDetail = Lot & { block_code: string; development_name: string; allowed_transitions: string[] };
+export type LotDetail = Lot & {
+  block_code: string;
+  development_name: string;
+  allowed_transitions: string[];
+  active_reservation_id: string | null;
+};
 
 export type DevelopmentMap = {
   development: Development;
@@ -51,4 +56,44 @@ export type LandOwner = {
   email: string | null;
   phone: string | null;
   notes: string | null;
+};
+
+export type Customer = {
+  id: string;
+  name: string;
+  document: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  notes: string | null;
+};
+
+export type Broker = {
+  id: string;
+  name: string;
+  creci: string | null;
+  email: string | null;
+  phone: string | null;
+  is_active: boolean;
+};
+
+export type Reservation = {
+  id: string;
+  status: "ativa" | "convertida" | "cancelada" | "expirada";
+  price: string;
+  expires_at: string;
+  created_at: string;
+  closed_at: string | null;
+  close_reason: string | null;
+  notes: string | null;
+  lot_id: string;
+  lot_number: string;
+  block_code: string;
+  development_id: string;
+  development_name: string;
+  customer_id: string;
+  customer_name: string;
+  broker_id: string | null;
+  broker_name: string | null;
 };

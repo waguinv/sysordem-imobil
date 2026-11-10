@@ -15,6 +15,15 @@
 - **Concorrência**: duas transações simultâneas vendendo o mesmo lote → exatamente uma vence, um único registro "vendido" no histórico.
 - `tests/test_db_dependency.py`: COMMIT antes da resposta (regressão).
 
+## Implementado (Fase 2a) — `apps/api/tests/test_fase2a.py`
+- Reserva: lote vai a "reservado", preço congelado (reajuste posterior não altera a reserva), validade padrão 72 h e limite máximo; corretor inativo recusado.
+- Lote com reserva ativa não muda de status manualmente; lote bloqueado/vendido não é reservado; segunda reserva do mesmo lote → 409.
+- Cancelar libera o lote e permite nova reserva; converter vende o lote; ações sobre reserva encerrada → 409.
+- Expiração: ao ler o lote/reserva, ao reservar de novo e pelo job (todas as empresas); reserva expirada não pode ser convertida.
+- **Concorrência**: duas reservas simultâneas do mesmo lote → só uma vence; índice único parcial barra inserção direta no banco.
+- Isolamento: empresa B não vê/usa compradores, corretores, reservas nem lotes de A; mesmo CPF permitido em empresas diferentes; RLS nas 3 tabelas.
+- RBAC: leitura/corretor sem acesso; financeiro só consulta; comercial cadastra comprador e reserva, mas não cadastra corretor.
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

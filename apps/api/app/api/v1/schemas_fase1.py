@@ -187,6 +187,7 @@ class LotDetailOut(LotOut):
     block_code: str
     development_name: str
     allowed_transitions: list[str]
+    active_reservation_id: uuid.UUID | None = None
 
 
 class MapBlock(BaseModel):

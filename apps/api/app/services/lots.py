@@ -23,13 +23,23 @@ class LotStatus(StrEnum):
     BLOQUEADO = "bloqueado"
 
 
-# Transições permitidas na Fase 1 (operação manual). Saída de "vendido" só por distrato (Fase 3).
+# Transições de status. Saída de "vendido" só por distrato (Fase 3).
 TRANSITIONS: dict[LotStatus, frozenset[LotStatus]] = {
     LotStatus.DISPONIVEL: frozenset({LotStatus.RESERVADO, LotStatus.VENDIDO, LotStatus.BLOQUEADO}),
     LotStatus.RESERVADO: frozenset({LotStatus.DISPONIVEL, LotStatus.VENDIDO}),
     LotStatus.BLOQUEADO: frozenset({LotStatus.DISPONIVEL}),
     LotStatus.VENDIDO: frozenset(),
 }
+
+# Desde a Fase 2a, "reservado" só nasce de uma reserva (com comprador e validade) e um lote com
+# reserva ativa só sai de "reservado" cancelando, expirando ou convertendo a reserva.
+
+
+def manual_transitions(current: str, has_active_reservation: bool) -> list[str]:
+    if has_active_reservation:
+        return []
+    allowed = TRANSITIONS.get(LotStatus(current), frozenset()) - {LotStatus.RESERVADO}
+    return sorted(s.value for s in allowed)
 
 
 class LotNotFoundError(Exception):
@@ -42,6 +52,59 @@ class LotConflictError(Exception):
 
 class InvalidTransitionError(Exception):
     pass
+
+
+def has_active_reservation(db: Session, tenant_id: uuid.UUID, lot_id: uuid.UUID) -> bool:
+    from app.models import Reservation  # import local: evita ciclo de import
+
+    return (
+        db.scalar(
+            select(Reservation.id).where(
+                Reservation.tenant_id == tenant_id,
+                Reservation.lot_id == lot_id,
+                Reservation.status == "ativa",
+            )
+        )
+        is not None
+    )
+
+
+def apply_status(
+    db: Session,
+    lot: Lot,
+    to_status: LotStatus,
+    *,
+    actor_user_id: uuid.UUID | None,
+    reason: str,
+    extra: dict[str, str] | None = None,
+) -> None:
+    """Muda o status de um lote JÁ TRAVADO (FOR UPDATE), com histórico e auditoria."""
+    if not can_transition(lot.status, to_status):
+        raise InvalidTransitionError(f"{lot.status} → {to_status}")
+    previous = lot.status
+    lot.status = to_status.value
+    lot.version += 1
+    db.add(
+        LotStatusHistory(
+            tenant_id=lot.tenant_id,
+            lot_id=lot.id,
+            from_status=previous,
+            to_status=to_status.value,
+            actor_user_id=actor_user_id,
+            reason=reason,
+        )
+    )
+    db.flush()
+    audit.record(
+        db,
+        tenant_id=lot.tenant_id,
+        actor_user_id=actor_user_id,
+        action="lot.status",
+        entity="lot",
+        entity_id=lot.id,
+        reason=reason,
+        data={"from": previous, "to": to_status.value, "version": lot.version, **(extra or {})},
+    )
 
 
 def can_transition(current: str, target: str) -> bool:
@@ -66,31 +129,9 @@ def change_status(
         raise LotNotFoundError
     if lot.version != expected_version:
         raise LotConflictError
-    if not can_transition(lot.status, to_status):
-        raise InvalidTransitionError(f"{lot.status} → {to_status}")
-
-    previous = lot.status
-    lot.status = to_status.value
-    lot.version += 1
-    db.add(
-        LotStatusHistory(
-            tenant_id=tenant_id,
-            lot_id=lot.id,
-            from_status=previous,
-            to_status=to_status.value,
-            actor_user_id=actor_user_id,
-            reason=reason,
+    if to_status.value not in manual_transitions(lot.status, has_active_reservation(db, tenant_id, lot.id)):
+        raise InvalidTransitionError(
+            f"{lot.status} → {to_status} (reservas são feitas e encerradas pela tela de reservas)"
         )
-    )
-    db.flush()
-    audit.record(
-        db,
-        tenant_id=tenant_id,
-        actor_user_id=actor_user_id,
-        action="lot.status",
-        entity="lot",
-        entity_id=lot.id,
-        reason=reason,
-        data={"from": previous, "to": to_status.value, "version": lot.version},
-    )
+    apply_status(db, lot, to_status, actor_user_id=actor_user_id, reason=reason)
     return lot

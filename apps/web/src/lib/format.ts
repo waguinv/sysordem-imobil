@@ -43,3 +43,29 @@ export const DEV_KIND: Record<string, string> = {
   chacaras: "Chácaras",
   condominio: "Condomínio",
 };
+
+export const RESERVATION_STATUS: Record<
+  string,
+  { label: string; badge: "default" | "muted" | "warning" | "outline" }
+> = {
+  ativa: { label: "Ativa", badge: "warning" },
+  convertida: { label: "Convertida em venda", badge: "default" },
+  cancelada: { label: "Cancelada", badge: "muted" },
+  expirada: { label: "Expirada", badge: "muted" },
+};
+
+/** "em 2 dias", "em 5 h", "vencida" — relativo a `now` (padrão: agora). */
+export function timeLeft(iso: string, now: Date = new Date()): string {
+  const ms = new Date(iso).getTime() - now.getTime();
+  if (ms <= 0) return "vencida";
+  const h = Math.floor(ms / 3_600_000);
+  if (h >= 47) return `em ${Math.round(ms / 86_400_000)} dias`;
+  if (h >= 1) return `em ${h} h`;
+  return `em ${Math.max(1, Math.floor(ms / 60_000))} min`;
+}
+
+/** Mostra só o tipo e os 3 últimos dígitos do CPF/CNPJ (minimização de dados na tela). */
+export function maskDoc(d: string | null): string {
+  if (!d) return "—";
+  return `${d.length === 11 ? "CPF" : "CNPJ"} •••${d.slice(-3)}`;
+}

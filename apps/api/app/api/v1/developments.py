@@ -34,6 +34,7 @@ from app.auth.rbac import Perm
 from app.models import Block, Development, LandOwner, Lot, LotStatusHistory, User
 from app.services import audit
 from app.services import lots as lot_service
+from app.services import reservations as reservation_service
 
 router = APIRouter(tags=["empreendimentos"])
 
@@ -261,6 +262,7 @@ def development_map(
     dev_id: uuid.UUID, ctx: AuthContext = Depends(require(Perm.DEVELOPMENTS_VIEW))
 ) -> DevelopmentMapOut:
     dev = _get_development(ctx, dev_id)
+    reservation_service.expire_due(ctx.db, ctx.tenant_id)  # mapa sempre reflete reservas vencidas
     blocks = ctx.db.scalars(
         select(Block)
         .where(Block.development_id == dev.id, Block.tenant_id == ctx.tenant_id)
@@ -432,18 +434,30 @@ def _detail(ctx: AuthContext, lot: Lot) -> LotDetailOut:
         .join(Development, Development.id == Block.development_id)
         .where(Block.id == lot.block_id)
     ).one()
-    allowed = sorted(s.value for s in lot_service.TRANSITIONS[lot_service.LotStatus(lot.status)])
+    from app.models import Reservation
+
+    active = ctx.db.scalar(
+        select(Reservation.id).where(
+            Reservation.tenant_id == ctx.tenant_id,
+            Reservation.lot_id == lot.id,
+            Reservation.status == "ativa",
+        )
+    )
     return LotDetailOut(
         **LotOut.model_validate(lot).model_dump(),
         block_code=block_code,
         development_name=dev_name,
-        allowed_transitions=allowed,
+        allowed_transitions=lot_service.manual_transitions(lot.status, active is not None),
+        active_reservation_id=active,
     )
 
 
 @router.get("/lots/{lot_id}", response_model=LotDetailOut)
 def get_lot(lot_id: uuid.UUID, ctx: AuthContext = Depends(require(Perm.DEVELOPMENTS_VIEW))) -> LotDetailOut:
-    return _detail(ctx, _get_lot(ctx, lot_id))
+    lot = _get_lot(ctx, lot_id)
+    if reservation_service.expire_due(ctx.db, ctx.tenant_id, lot_id=lot.id):
+        ctx.db.refresh(lot)
+    return _detail(ctx, lot)
 
 
 @router.patch("/lots/{lot_id}", response_model=LotDetailOut)

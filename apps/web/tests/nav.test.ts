@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDecimalBR } from "@/lib/format";
+import { maskDoc, parseDecimalBR, timeLeft } from "@/lib/format";
 import { findRoute, isGroup, NAV, navFor } from "@/lib/nav";
 import { initials } from "@/lib/utils";
 
@@ -48,7 +48,6 @@ describe("initials", () => {
   });
 });
 
-
 describe("parseDecimalBR", () => {
   it("normaliza formatos brasileiros sem usar float", () => {
     expect(parseDecimalBR("150.000,50")).toBe("150000.50");
@@ -61,5 +60,21 @@ describe("parseDecimalBR", () => {
     expect(parseDecimalBR("abc")).toBeNull();
     expect(parseDecimalBR("10,005")).toBeNull();
     expect(parseDecimalBR("-5")).toBeNull();
+  });
+});
+
+describe("timeLeft e maskDoc", () => {
+  const now = new Date("2026-11-10T12:00:00Z");
+  it("descreve o prazo restante", () => {
+    expect(timeLeft("2026-11-13T12:00:00Z", now)).toBe("em 3 dias");
+    expect(timeLeft("2026-11-13T11:59:00Z", now)).toBe("em 3 dias");
+    expect(timeLeft("2026-11-10T17:30:00Z", now)).toBe("em 5 h");
+    expect(timeLeft("2026-11-10T12:20:00Z", now)).toBe("em 20 min");
+    expect(timeLeft("2026-11-10T11:00:00Z", now)).toBe("vencida");
+  });
+  it("mascara documento", () => {
+    expect(maskDoc("52998224725")).toBe("CPF •••725");
+    expect(maskDoc("11222333000181")).toBe("CNPJ •••181");
+    expect(maskDoc(null)).toBe("—");
   });
 });

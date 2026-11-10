@@ -14,7 +14,7 @@ def test_health():
 def test_api_root():
     response = client.get("/api/v1")
     assert response.status_code == 200
-    assert response.json()["phase"] == "1"
+    assert response.json()["phase"] == "2a"
 
 
 def test_protected_route_requires_token():
