@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ── Tokens da marca SysOrdem (identidade padrão dos sistemas SysOrdem) ── */
+:root {
+  --brand-green: #00c99a;
+  --brand-institutional: #003b2d;
+  --brand-deep: #00291f;
+  --brand-surface: #f0f7f4;
+  --brand-muted-text: #52665f;
+
+  --radius: 0.625rem;
+  --background: #ffffff;
+  --foreground: #0f241d;
+  --card: #ffffff;
+  --card-foreground: #0f241d;
+  --primary: #00c99a;
+  --primary-foreground: #00291f;
+  --secondary: #f0f7f4;
+  --secondary-foreground: #003b2d;
+  --muted: #f0f7f4;
+  --muted-foreground: #52665f;
+  --accent: #e3f4ed;
+  --accent-foreground: #003b2d;
+  --destructive: #d92d20;
+  --border: #dbe7e2;
+  --input: #cfded8;
+  --ring: #00c99a;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1d342c;
+  --sidebar-primary: #003b2d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f6f0;
+  --sidebar-accent-foreground: #003b2d;
+  --sidebar-border: #e4ede9;
+
+  /* status de lote (Imobil) */
+  --lot-disponivel: #00c99a;
+  --lot-reservado: #f5c542;
+  --lot-vendido: #003b2d;
+  --lot-bloqueado: #9aa5a1;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-brand: var(--brand-green);
+  --color-brand-institutional: var(--brand-institutional);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-muted: var(--brand-muted-text);
+
+  --color-lot-disponivel: var(--lot-disponivel);
+  --color-lot-reservado: var(--lot-reservado);
+  --color-lot-vendido: var(--lot-vendido);
+  --color-lot-bloqueado: var(--lot-bloqueado);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}

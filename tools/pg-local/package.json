@@ -1,0 +1,8 @@
+{
+  "name": "imobil-pg-local",
+  "private": true,
+  "type": "module",
+  "description": "PostgreSQL embarcado para desenvolvimento/testes sem Docker",
+  "scripts": { "start": "node pg-local.mjs" },
+  "dependencies": { "embedded-postgres": "17.10.0-beta.17" }
+}

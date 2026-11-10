@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "apps/api/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "apps/api", "--port", "8000"],
+      "port": 8000,
+      "env": {
+        "DATABASE_URL": "postgresql+psycopg://imobil_app:local_app_dev_only@127.0.0.1:55432/imobil",
+        "JWT_SECRET": "local-dev-only-secret-0123456789abcdef"
+      }
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/web", "run", "dev"],
+      "port": 3000,
+      "env": { "API_INTERNAL_URL": "http://127.0.0.1:8000" }
+    }
+  ]
+}
