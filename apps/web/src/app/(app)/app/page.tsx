@@ -1,9 +1,11 @@
 import { ArrowRight, Banknote, CalendarClock, FileSignature, Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/primitives";
-import { getMe } from "@/lib/session";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/primitives";
+import { StatusLegend } from "@/components/lots/lot-map";
+import { brl } from "@/lib/format";
+import { api, getMe } from "@/lib/session";
+import type { Development } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Tela inicial" };
 
@@ -14,24 +16,7 @@ const METRICS = [
   { label: "Vendas contratadas", value: "R$ 0,00", note: "Contratos ativos", icon: FileSignature },
 ];
 
-type LotStatus = "disponivel" | "reservado" | "vendido" | "bloqueado";
-const STATUS: Record<LotStatus, { label: string; cell: string; dot: string }> = {
-  disponivel: { label: "Disponível", cell: "bg-lot-disponivel text-brand-deep", dot: "bg-lot-disponivel" },
-  reservado: { label: "Reservado", cell: "bg-lot-reservado text-amber-950", dot: "bg-lot-reservado" },
-  vendido: { label: "Vendido", cell: "bg-lot-vendido text-white", dot: "bg-lot-vendido" },
-  bloqueado: { label: "Bloqueado", cell: "bg-lot-bloqueado text-white", dot: "bg-lot-bloqueado" },
-};
-
-/** Mapa ilustrativo (dados fictícios). A planta real chega na Fase 1. */
-function demoStatus(i: number): LotStatus {
-  if (i % 11 === 5) return "bloqueado";
-  if (i % 7 === 2) return "reservado";
-  if (i % 4 === 0) return "vendido";
-  return "disponivel";
-}
-
 const MODULES = [
-  { title: "Empreendimentos e lotes", phase: "Fase 1" },
   { title: "CRM, reservas e contratos", phase: "Fase 2" },
   { title: "Parcelas e financeiro", phase: "Fase 3" },
   { title: "Pix/boleto e conciliação", phase: "Fase 4" },
@@ -39,7 +24,10 @@ const MODULES = [
 ];
 
 export default async function DashboardPage() {
-  const me = await getMe();
+  const [me, devs] = await Promise.all([getMe(), api<Development[]>("/developments")]);
+  const totals = { disponivel: 0, reservado: 0, vendido: 0, bloqueado: 0 };
+  for (const d of devs)
+    for (const k of Object.keys(totals) as (keyof typeof totals)[]) totals[k] += d.counts[k];
   const firstName = me.full_name.split(" ")[0];
   return (
     <div className="space-y-6">
@@ -73,43 +61,48 @@ export default async function DashboardPage() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>Mapa de lotes</CardTitle>
-            <CardDescription>
-              Exemplo visual — a planta real do empreendimento chega na Fase 1.
-            </CardDescription>
+            <CardTitle>Lotes por situação</CardTitle>
+            <CardDescription>Todos os empreendimentos da empresa.</CardDescription>
           </div>
-          <Badge variant="muted">Demonstração</Badge>
+          <Link
+            href="/app/empreendimentos"
+            className="text-brand-institutional inline-flex shrink-0 items-center gap-1 text-sm font-medium hover:underline"
+          >
+            Ver mapas <ArrowRight className="size-4" />
+          </Link>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-xs">
-            {Object.values(STATUS).map((s) => (
-              <span key={s.label} className="flex items-center gap-2">
-                <i className={cn("size-2.5 rounded-full", s.dot)} />
-                {s.label}
-              </span>
-            ))}
-          </div>
-          <div
-            className="bg-brand-surface grid grid-cols-4 gap-1.5 rounded-xl p-3 sm:grid-cols-8"
-            aria-label="Mapa ilustrativo, não representa limites reais"
-          >
-            {Array.from({ length: 24 }, (_, i) => {
-              const s = STATUS[demoStatus(i)];
-              return (
-                <div
-                  key={i}
-                  title={s.label}
-                  className={cn("flex min-h-16 flex-col items-center justify-center rounded-md", s.cell)}
+          <StatusLegend counts={totals} />
+          {devs.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nenhum empreendimento ainda.{" "}
+              {me.permissions.includes("developments:manage") && (
+                <Link
+                  href="/app/empreendimentos/novo"
+                  className="text-brand-institutional font-medium underline"
                 >
-                  <small className="text-[10px] opacity-80">Q{Math.floor(i / 8) + 1}</small>
-                  <strong className="text-base">{String((i % 8) + 1).padStart(2, "0")}</strong>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-muted-foreground text-xs">
-            Valores e lotes exibidos são fictícios e não representam empreendimento real.
-          </p>
+                  Cadastrar o primeiro
+                </Link>
+              )}
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {devs.map((d) => (
+                <li key={d.id}>
+                  <Link
+                    href={`/app/empreendimentos/${d.id}`}
+                    className="hover:bg-brand-surface flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-2.5"
+                  >
+                    <span className="text-sm font-medium">{d.name}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {d.lots_total} lotes · {d.counts.disponivel} disponíveis · {brl(d.available_value)} em
+                      estoque
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 
@@ -122,7 +115,7 @@ export default async function DashboardPage() {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {MODULES.map((m) => (
             <div key={m.title} className="rounded-lg border p-3">
               <p className="text-sm font-medium">{m.title}</p>

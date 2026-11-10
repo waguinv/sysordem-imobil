@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from functools import lru_cache
 from uuid import UUID
 
+from fastapi import Depends
 from sqlalchemy import Connection, Engine, create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -47,6 +48,10 @@ def set_tenant(session: Session, tenant_id: UUID | None) -> None:
 
 
 def get_db() -> Iterator[Session]:
+    """Sessão por requisição. Use SEMPRE via `DB_DEPENDS` (scope="function"):
+    no FastAPI ≥ 0.118 o código após o `yield` roda, por padrão, DEPOIS de a resposta ser enviada —
+    o cliente receberia 201 antes do COMMIT (leitura desatualizada e "sucesso" mesmo se o COMMIT falhar).
+    """
     session = get_sessionmaker()()
     try:
         yield session
@@ -56,3 +61,7 @@ def get_db() -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+# Dependência padrão de banco: COMMIT/ROLLBACK antes de a resposta sair.
+DB_DEPENDS = Depends(get_db, scope="function")

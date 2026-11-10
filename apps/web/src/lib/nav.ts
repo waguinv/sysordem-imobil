@@ -21,6 +21,8 @@ export type NavLink = {
   permission: string;
   /** fase do roadmap em que a tela será entregue */
   soon?: string;
+  /** outras rotas que também destacam este item (ex.: telas de detalhe) */
+  alsoActive?: string[];
 };
 
 export type NavGroup = { title: string; icon: LucideIcon; items: NavLink[] };
@@ -34,14 +36,13 @@ export const NAV: NavEntry[] = [
     title: "Empreendimentos",
     icon: LandPlot,
     items: [
-      { title: "Empreendimentos", href: "/app/empreendimentos", permission: "tenant:view", soon: "Fase 1" },
-      { title: "Quadras e lotes", href: "/app/lotes", permission: "tenant:view", soon: "Fase 1" },
       {
-        title: "Proprietários da área",
-        href: "/app/proprietarios",
-        permission: "tenant:view",
-        soon: "Fase 1",
+        title: "Empreendimentos e lotes",
+        href: "/app/empreendimentos",
+        permission: "developments:view",
+        alsoActive: ["/app/lotes"],
       },
+      { title: "Proprietários da área", href: "/app/proprietarios", permission: "owners:view" },
     ],
   },
   {

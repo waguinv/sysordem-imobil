@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.schemas import LoginIn, SwitchTenantIn, TokenOut
 from app.auth.deps import AuthContext, get_auth
 from app.core.config import get_settings
-from app.core.db import get_db, set_tenant
+from app.core.db import DB_DEPENDS, set_tenant
 from app.core.security import create_access_token, verify_password
 from app.models import Membership, Tenant, User
 from app.services import audit, login_throttle
@@ -36,7 +36,7 @@ def _active_tenant(db: Session, slug: str) -> Tenant | None:
 
 
 @router.post("/login", response_model=TokenOut)
-def login(body: LoginIn, db: Session = Depends(get_db)) -> TokenOut:
+def login(body: LoginIn, db: Session = DB_DEPENDS) -> TokenOut:
     if login_throttle.is_blocked(body.tenant_slug, body.email):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Muitas tentativas")
 

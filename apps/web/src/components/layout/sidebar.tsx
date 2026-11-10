@@ -8,8 +8,12 @@ import { Logo } from "@/components/brand/logo";
 import { isGroup, navFor, type NavGroup, type NavLink } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
-function isActive(pathname: string, href: string) {
+function matches(pathname: string, href: string) {
   return href === "/app" ? pathname === "/app" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isActive(pathname: string, item: NavLink) {
+  return matches(pathname, item.href) || (item.alsoActive ?? []).some((h) => matches(pathname, h));
 }
 
 function LinkItem({
@@ -23,7 +27,7 @@ function LinkItem({
   nested?: boolean;
   onNavigate?: () => void;
 }) {
-  const active = isActive(pathname, item.href);
+  const active = isActive(pathname, item);
   const Icon = item.icon;
   return (
     <Link
@@ -61,7 +65,7 @@ function GroupItem({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const containsActive = group.items.some((i) => isActive(pathname, i.href));
+  const containsActive = group.items.some((i) => isActive(pathname, i));
   const [open, setOpen] = useState(containsActive);
   const Icon = group.icon;
   return (

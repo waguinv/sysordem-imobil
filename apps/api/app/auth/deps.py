@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.rbac import Perm, can
-from app.core.db import get_db, set_tenant
+from app.core.db import DB_DEPENDS, set_tenant
 from app.core.security import decode_access_token
 from app.models import Membership, Tenant, User
 
@@ -47,7 +47,7 @@ class AuthContext:
 
 def get_auth(
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
-    db: Session = Depends(get_db),
+    db: Session = DB_DEPENDS,
 ) -> AuthContext:
     if creds is None or creds.scheme.lower() != "bearer":
         raise _UNAUTHORIZED

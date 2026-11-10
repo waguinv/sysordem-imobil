@@ -95,6 +95,8 @@ SPEC = {
     "erin": [("a", "admin")],
     "bob": [("b", "owner")],
     "dave": [("a", "comercial"), ("b", "leitura")],
+    "fabi": [("a", "financeiro")],
+    "gil": [("a", "corretor")],
 }
 
 
@@ -107,7 +109,12 @@ def world(owner_engine) -> World:
     w = World()
     pw = hash_password(PASSWORD)
     with owner_engine.begin() as c:
-        c.execute(text("TRUNCATE audit_events, memberships, users, tenants CASCADE"))
+        c.execute(
+            text(
+                "TRUNCATE lot_status_history, lots, blocks, developments, land_owners, "
+                "audit_events, memberships, users, tenants CASCADE"
+            )
+        )
         c.execute(
             text(
                 "INSERT INTO tenants (id, slug, name) "

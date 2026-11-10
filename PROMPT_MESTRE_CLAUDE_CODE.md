@@ -1,6 +1,6 @@
 # PROMPT MESTRE — SysOrdem Imobil (codinome LoteaPro)
 
-> Fase 0 concluída — ver README.md e docs/SEGURANCA.md. Identidade visual: docs/IDENTIDADE_VISUAL.md (padrão SysOrdem).
+> Fases 0 e 1 concluídas — ver README.md e docs/SEGURANCA.md. Identidade visual: docs/IDENTIDADE_VISUAL.md (padrão SysOrdem).
 
 Atue como engenheiro de software sênior e arquiteto SaaS multi-tenant. Desenvolva o SysOrdem Imobil (codinome LoteaPro), uma plataforma responsiva para gestão de loteamentos de terrenos e chácaras. Antes de alterar código, leia README.md e todos os documentos em docs/. Trabalhe incrementalmente, implemente testes e não declare algo pronto sem executar e relatar os testes.
 
