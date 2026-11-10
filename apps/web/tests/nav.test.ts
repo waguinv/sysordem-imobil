@@ -61,6 +61,11 @@ describe("parseDecimalBR", () => {
     expect(parseDecimalBR("10,005")).toBeNull();
     expect(parseDecimalBR("-5")).toBeNull();
   });
+  it("aceita mais casas quando pedido (porcentagens)", () => {
+    expect(parseDecimalBR("0,8125", 4)).toBe("0.8125");
+    expect(parseDecimalBR("1,5%", 4)).toBe("1.5");
+    expect(parseDecimalBR("0,81255", 4)).toBeNull();
+  });
 });
 
 describe("timeLeft e maskDoc", () => {

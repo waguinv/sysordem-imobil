@@ -393,14 +393,3 @@ def cancel_reservation(
     except svc.ReservationError as e:
         raise _business(e) from None
     return _get_res_out(ctx, res_id)
-
-
-@router.post("/reservations/{res_id}/convert", response_model=ReservationOut)
-def convert_reservation(
-    res_id: uuid.UUID, body: ReservationClose, ctx: AuthContext = Depends(require(Perm.RESERVATIONS_MANAGE))
-) -> ReservationOut:
-    try:
-        svc.convert(ctx.db, tenant_id=ctx.tenant_id, res_id=res_id, actor=ctx.user.id, reason=body.reason)
-    except svc.ReservationError as e:
-        raise _business(e) from None
-    return _get_res_out(ctx, res_id)

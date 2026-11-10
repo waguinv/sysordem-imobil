@@ -17,11 +17,11 @@ export function dateTime(iso: string): string {
 }
 
 /** Aceita "150.000,50", "150000,50" ou "150000.50" e devolve "150000.50" (string, sem float). */
-export function parseDecimalBR(input: string): string | null {
-  const s = input.trim().replace(/\s|R\$/g, "");
+export function parseDecimalBR(input: string, maxDecimals = 2): string | null {
+  const s = input.trim().replace(/\s|R\$|%/g, "");
   if (!s) return null;
   const normalized = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s;
-  return /^\d+(\.\d{1,2})?$/.test(normalized) ? normalized : null;
+  return new RegExp(`^\\d+(\\.\\d{1,${maxDecimals}})?$`).test(normalized) ? normalized : null;
 }
 
 export const LOT_STATUS: Record<string, { label: string; cell: string; dot: string }> = {
@@ -68,4 +68,30 @@ export function timeLeft(iso: string, now: Date = new Date()): string {
 export function maskDoc(d: string | null): string {
   if (!d) return "—";
   return `${d.length === 11 ? "CPF" : "CNPJ"} •••${d.slice(-3)}`;
+}
+
+export const CONTRACT_STATUS: Record<
+  string,
+  { label: string; badge: "default" | "muted" | "warning" | "outline" }
+> = {
+  rascunho: { label: "Rascunho", badge: "warning" },
+  assinado: { label: "Assinado", badge: "default" },
+  cancelado: { label: "Cancelado", badge: "muted" },
+};
+
+export const ADJUSTMENT_INDEX: Record<string, string> = {
+  nenhum: "Sem correção",
+  IPCA: "IPCA",
+  IGPM: "IGP-M",
+  INCC: "INCC",
+};
+
+export function pct(value: string): string {
+  return `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%`;
+}
+
+export function dateBR(iso: string | null): string {
+  if (!iso) return "—";
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
 }

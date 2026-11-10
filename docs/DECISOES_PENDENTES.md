@@ -14,3 +14,6 @@
 13. Validade padrão da reserva (adotado: 72 h; máx. 30 dias) — confirmar e definir se varia por empreendimento.
 14. Reserva exige sinal/pagamento? Hoje é só bloqueio com prazo; sinal entra com o financeiro (Fase 3).
 15. Corretor deve ver/reservar só os próprios clientes (proposta para a Fase 2b) ou todos os lotes/clientes da empresa?
+16. Contratos: multa padrão 2% e juros de mora 1% a.m. (hipóteses) — validar com jurídico/contábil; índices de correção aceitos e periodicidade de reajuste.
+17. Juros de financiamento: Tabela Price (adotada) ou SAC? Ajuste de centavos na última parcela (adotado para a Fase 3).
+18. Assinatura: hoje é registro manual (quem registrou e quando); definir provedor de assinatura eletrônica.

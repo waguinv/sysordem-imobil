@@ -93,7 +93,7 @@ export async function createReservationAction(lotId: string, _p: FormState, f: F
 export async function closeReservationAction(
   resId: string,
   lotId: string,
-  kind: "cancel" | "convert",
+  kind: "cancel",
   _p: FormState,
   f: FormData,
 ): Promise<FormState> {
@@ -101,7 +101,7 @@ export async function closeReservationAction(
   if (reason.length < 3) return { error: "Informe o motivo (mín. 3 caracteres)." };
   return run(
     () => api(`/reservations/${resId}/${kind}`, { method: "POST", body: JSON.stringify({ reason }) }),
-    kind === "cancel" ? "Reserva cancelada" : "Venda registrada",
+    "Reserva cancelada",
     [`/app/lotes/${lotId}`, "/app/reservas"],
   );
 }

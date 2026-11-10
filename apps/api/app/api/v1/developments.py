@@ -434,7 +434,7 @@ def _detail(ctx: AuthContext, lot: Lot) -> LotDetailOut:
         .join(Development, Development.id == Block.development_id)
         .where(Block.id == lot.block_id)
     ).one()
-    from app.models import Reservation
+    from app.models import Reservation, SalesContract
 
     active = ctx.db.scalar(
         select(Reservation.id).where(
@@ -443,12 +443,21 @@ def _detail(ctx: AuthContext, lot: Lot) -> LotDetailOut:
             Reservation.status == "ativa",
         )
     )
+    contract = ctx.db.execute(
+        select(SalesContract.id, SalesContract.status).where(
+            SalesContract.tenant_id == ctx.tenant_id,
+            SalesContract.lot_id == lot.id,
+            SalesContract.status != "cancelado",
+        )
+    ).one_or_none()
+    held = active is not None or (contract is not None and contract.status == "rascunho")
     return LotDetailOut(
         **LotOut.model_validate(lot).model_dump(),
         block_code=block_code,
         development_name=dev_name,
-        allowed_transitions=lot_service.manual_transitions(lot.status, active is not None),
+        allowed_transitions=lot_service.manual_transitions(lot.status, held),
         active_reservation_id=active,
+        contract_id=contract.id if contract else None,
     )
 
 

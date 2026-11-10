@@ -123,16 +123,6 @@ def test_cancel_frees_lot_and_allows_new_reservation(client, env):
     assert _reserve(client, h, lot_id, env["customer"]["id"]).status_code == 201
 
 
-def test_convert_sells_lot(client, env):
-    h, lot_id = env["h"], env["lots"][0]["id"]
-    res = _reserve(client, h, lot_id, env["customer"]["id"]).json()
-    r = client.post(f"{API}/reservations/{res['id']}/convert", headers=h, json={"reason": "sinal pago"})
-    assert r.status_code == 200 and r.json()["status"] == "convertida"
-    assert client.get(f"{API}/lots/{lot_id}", headers=h).json()["status"] == "vendido"
-    events = client.get(f"{API}/audit-events", headers=h).json()
-    assert any(e["action"] == "reservation.convertida" for e in events)
-
-
 def test_validity_limits_and_inactive_broker(client, env):
     h = env["h"]
     lot_id = env["lots"][0]["id"]
@@ -182,15 +172,6 @@ def test_expiration_job_runs_for_all_tenants(client, env, owner_engine):
         st = c.execute(text("SELECT status FROM reservations WHERE id = :i"), {"i": res["id"]}).scalar()
         lot = c.execute(text("SELECT status FROM lots WHERE id = :i"), {"i": env["lots"][2]["id"]}).scalar()
     assert (st, lot) == ("expirada", "disponivel")
-
-
-def test_cannot_convert_expired_reservation(client, env, owner_engine):
-    h = env["h"]
-    res = _reserve(client, h, env["lots"][0]["id"], env["customer"]["id"]).json()
-    _expire_in_db(owner_engine, res["id"])
-    r = client.post(f"{API}/reservations/{res['id']}/convert", headers=h, json={"reason": "tarde"})
-    assert r.status_code == 409
-    assert client.get(f"{API}/lots/{env['lots'][0]['id']}", headers=h).json()["status"] == "disponivel"
 
 
 # ─────────────────────────── concorrência ───────────────────────────

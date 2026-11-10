@@ -33,6 +33,15 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Permissões: `customers:view|manage`, `brokers:view|manage`, `reservations:view|manage`. Comercial reserva e cadastra compradores; financeiro só consulta; corretor e leitura ainda sem acesso (escopo "só meus clientes" na Fase 2b).
 - Web: Compradores (busca, documento mascarado), Corretores (ativar/desativar), Reservas (filtros, prazo restante) e painel de reserva na tela do lote.
 
+## Implementado na Fase 2b
+- Tabelas (RLS + FKs compostas): `sales_contracts`, `contract_versions` (append-only), `tenant_counters` (numeração por empresa, `INSERT … ON CONFLICT … RETURNING`). Migration `0004`.
+- Fluxo: reserva ativa → **gerar contrato** (rascunho; reserva vira "convertida"; lote segue "reservado") → novas versões de condições → **assinar** (lote "vendido", condições congeladas) ou **cancelar** (lote "disponível"). Contrato assinado só se desfaz por distrato (Fase 3). O antigo "converter reserva" foi substituído pelo contrato.
+- Garantias: um contrato não cancelado por lote (índice único parcial); uma reserva gera no máximo um contrato; versão esperada (`expected_version`) ao alterar e ao assinar, para ninguém assinar condições que mudaram.
+- Condições: valor total (padrão: preço congelado na reserva), entrada, nº de parcelas (0 = à vista), juros % a.m., 1º vencimento, índice de correção (nenhum/IPCA/IGP-M/INCC), multa e juros de mora. Parcela calculada no servidor em `Decimal` (`app/services/finance.py`: divisão simples ou Tabela Price). O cronograma de parcelas é gerado na Fase 3.
+- Numeração `AAAA-NNNN` por empresa; número só é consumido se o contrato for criado.
+- Permissões: `contracts:view` (owner/admin/comercial/financeiro), `contracts:manage` (owner/admin/comercial), `contracts:sign` (owner/admin).
+- Web: lista de contratos com filtros, tela do contrato (condições, versões, assinar, cancelar, nova versão) e "Gerar contrato" na reserva ativa do lote.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

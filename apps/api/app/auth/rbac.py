@@ -31,6 +31,9 @@ class Perm(StrEnum):
     BROKERS_MANAGE = "brokers:manage"
     RESERVATIONS_VIEW = "reservations:view"
     RESERVATIONS_MANAGE = "reservations:manage"
+    CONTRACTS_VIEW = "contracts:view"
+    CONTRACTS_MANAGE = "contracts:manage"
+    CONTRACTS_SIGN = "contracts:sign"
 
 
 _ALL = frozenset(Perm)
@@ -48,6 +51,7 @@ MATRIX: dict[Role, frozenset[Perm]] = {
         Perm.CUSTOMERS_VIEW,
         Perm.BROKERS_VIEW,
         Perm.RESERVATIONS_VIEW,
+        Perm.CONTRACTS_VIEW,
     },
     Role.COMERCIAL: _BASE
     | {
@@ -58,6 +62,8 @@ MATRIX: dict[Role, frozenset[Perm]] = {
         Perm.BROKERS_VIEW,
         Perm.RESERVATIONS_VIEW,
         Perm.RESERVATIONS_MANAGE,
+        Perm.CONTRACTS_VIEW,
+        Perm.CONTRACTS_MANAGE,
     },
     # Corretor: acesso a compradores/reservas só dos próprios clientes chega na Fase 2b (escopo por corretor).
     Role.CORRETOR: _BASE,

@@ -188,6 +188,7 @@ class LotDetailOut(LotOut):
     development_name: str
     allowed_transitions: list[str]
     active_reservation_id: uuid.UUID | None = None
+    contract_id: uuid.UUID | None = None  # contrato em rascunho ou assinado
 
 
 class MapBlock(BaseModel):

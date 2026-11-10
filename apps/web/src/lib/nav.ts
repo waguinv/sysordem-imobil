@@ -55,13 +55,7 @@ export const NAV: NavEntry[] = [
       { title: "Leads e propostas", href: "/app/crm", permission: "tenant:view", soon: "Fase 2b" },
     ],
   },
-  {
-    title: "Contratos",
-    href: "/app/contratos",
-    icon: FileSignature,
-    permission: "tenant:view",
-    soon: "Fase 2b",
-  },
+  { title: "Contratos", href: "/app/contratos", icon: FileSignature, permission: "contracts:view" },
   {
     title: "Financeiro",
     icon: Wallet,
