@@ -12,10 +12,12 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     Date,
     DateTime,
     ForeignKey,
+    Identity,
     Integer,
     Numeric,
     String,
@@ -195,6 +197,8 @@ class Customer(Base):
     city: Mapped[str | None] = mapped_column(String(120))
     state: Mapped[str | None] = mapped_column(String(2))
     notes: Mapped[str | None] = mapped_column(Text)
+    # Corretor responsável (Fase 2c): define o escopo "só meus clientes" do perfil corretor.
+    broker_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -313,3 +317,74 @@ class ContractPolicy(Base):
     allow_override_late_charges: Mapped[bool] = mapped_column(Boolean, nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+
+
+# ───────────────────────── Fase 2c: CRM (leads) e propostas ─────────────────────────
+
+
+class Lead(Base):
+    """Interessado ainda não qualificado como comprador. Ao converter, vira (ou liga-se a) um Customer."""
+
+    __tablename__ = "leads"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(254))
+    phone: Mapped[str | None] = mapped_column(String(30))
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    development_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    broker_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="novo")
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    lost_reason: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class LeadActivity(Base):
+    """Histórico do lead (append-only)."""
+
+    __tablename__ = "lead_activities"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    lead_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(always=True), nullable=False)
+
+
+class Proposal(Base):
+    """Proposta de compra de um lote. Aceitar reserva o lote; as condições pré-preenchem o contrato."""
+
+    __tablename__ = "proposals"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    lot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    broker_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    lead_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="aberta")
+    valid_until: Mapped[date] = mapped_column(Date, nullable=False)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    down_payment: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    installments_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    installment_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    amortization: Mapped[str] = mapped_column(String(10), nullable=False)
+    interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    first_due_date: Mapped[date | None] = mapped_column(Date)
+    notes: Mapped[str | None] = mapped_column(Text)
+    reservation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    decision_reason: Mapped[str | None] = mapped_column(Text)

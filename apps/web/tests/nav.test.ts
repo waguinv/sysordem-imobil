@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maskDoc, parseDecimalBR, timeLeft } from "@/lib/format";
+import { discountLabel, maskDoc, parseDecimalBR, timeLeft } from "@/lib/format";
 import { findRoute, isGroup, NAV, navFor } from "@/lib/nav";
 import { initials } from "@/lib/utils";
 
@@ -30,6 +30,13 @@ describe("menu por permissão", () => {
     expect(flat(["developments:view"])).toContain("/app/empreendimentos");
     expect(flat(["developments:view"])).not.toContain("/app/proprietarios");
     expect(flat(["owners:view"])).toContain("/app/proprietarios");
+  });
+
+  it("leads e propostas seguem as próprias permissões", () => {
+    expect(flat(["leads:view"])).toContain("/app/leads");
+    expect(flat(["leads:view"])).not.toContain("/app/propostas");
+    expect(flat(["proposals:view"])).toContain("/app/propostas");
+    expect(flat(["tenant:view"])).not.toContain("/app/leads");
   });
 
   it("rotas são únicas e findRoute encontra todas", () => {
@@ -81,5 +88,13 @@ describe("timeLeft e maskDoc", () => {
     expect(maskDoc("52998224725")).toBe("CPF •••725");
     expect(maskDoc("11222333000181")).toBe("CNPJ •••181");
     expect(maskDoc(null)).toBe("—");
+  });
+});
+
+describe("discountLabel", () => {
+  it("descreve desconto, ágio e preço de tabela", () => {
+    expect(discountLabel("5.00")).toBe("5% de desconto");
+    expect(discountLabel("-2.50")).toBe("2,5% acima da tabela");
+    expect(discountLabel("0.00")).toBe("preço de tabela");
   });
 });

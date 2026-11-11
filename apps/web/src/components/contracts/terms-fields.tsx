@@ -19,10 +19,13 @@ export function TermsFields({
   initial,
   totalHint,
   policy,
+  compact = false,
 }: {
-  initial?: ContractTerms;
+  initial?: Partial<ContractTerms>;
   totalHint: string;
   policy: ContractPolicy;
+  /** proposta: sem correção nem encargos de atraso (definidos no contrato) */
+  compact?: boolean;
 }) {
   const overrideLate = policy.allow_override_late_charges;
   return (
@@ -96,21 +99,23 @@ export function TermsFields({
             defaultValue={initial?.first_due_date ?? defaultDue()}
           />
         </Field>
-        <Field label="Correção" htmlFor="adjustment_index">
-          <select
-            id="adjustment_index"
-            name="adjustment_index"
-            className={selectClass}
-            defaultValue={initial?.adjustment_index ?? policy.default_adjustment_index}
-          >
-            {Object.entries(ADJUSTMENT_INDEX).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {overrideLate ? (
+        {!compact && (
+          <Field label="Correção" htmlFor="adjustment_index">
+            <select
+              id="adjustment_index"
+              name="adjustment_index"
+              className={selectClass}
+              defaultValue={initial?.adjustment_index ?? policy.default_adjustment_index}
+            >
+              {Object.entries(ADJUSTMENT_INDEX).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {compact ? null : overrideLate ? (
           <>
             <Field label="Multa por atraso (%)" htmlFor="late_fee_pct">
               <Input

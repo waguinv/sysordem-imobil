@@ -303,7 +303,7 @@ def test_rls_hides_phase2a_tables_without_context(app_engine, env):
 
 def test_rbac_for_commercial_data(client, env):
     lot_id = env["lots"][0]["id"]
-    for user in ("carol", "gil"):  # leitura e corretor (escopo do corretor chega na Fase 2b)
+    for user in ("carol", "gil"):  # leitura; corretor sem vínculo com cadastro de corretor (Fase 2c)
         h = login(client, user)
         assert client.get(f"{API}/customers", headers=h).status_code == 403
         assert client.get(f"{API}/reservations", headers=h).status_code == 403

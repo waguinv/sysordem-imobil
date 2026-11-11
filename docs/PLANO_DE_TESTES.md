@@ -40,6 +40,14 @@
 - Política inválida recusada; política é por empresa; só owner/admin alteram.
 - `tests/test_finance.py`: 1ª parcela SAC.
 
+## Implementado (Fase 2c) — `tests/test_fase2c.py`
+- Leads: contato obrigatório; ligação move "novo" → "em contato"; perda exige motivo e reabertura; conversão cria comprador uma única vez (herda corretor) ou liga a existente; CPF duplicado recusado.
+- Propostas: condições pela política (desconto calculado, parcela Price), limites recusados, validade (passado/máx. 90 dias), lote vendido/bloqueado recusado.
+- Aceitar reserva o lote congelando o valor negociado, liga a reserva e é final; proposta concorrente de outro cliente recusada; reaproveita a reserva do próprio cliente uma única vez; proposta expirada não é aceita; histórico do lead registra proposta e aceite.
+- Concorrência: duas aceitações simultâneas no mesmo lote — só uma vence.
+- Escopo do corretor: precisa de vínculo ativo; vê/age só nos próprios leads, compradores, reservas e propostas (404 fora do escopo); atua sempre em nome próprio; sem contratos nem cadastro de corretores; corretor inativo perde o acesso.
+- Isolamento (empresa B), RLS nas 3 tabelas, `lead_activities` append-only, RBAC (leitura sem acesso, financeiro só consulta propostas, comercial faz tudo).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

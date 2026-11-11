@@ -35,6 +35,10 @@ class Perm(StrEnum):
     CONTRACTS_MANAGE = "contracts:manage"
     CONTRACTS_SIGN = "contracts:sign"
     SETTINGS_MANAGE = "settings:manage"
+    LEADS_VIEW = "leads:view"
+    LEADS_MANAGE = "leads:manage"
+    PROPOSALS_VIEW = "proposals:view"
+    PROPOSALS_MANAGE = "proposals:manage"
 
 
 _ALL = frozenset(Perm)
@@ -53,6 +57,7 @@ MATRIX: dict[Role, frozenset[Perm]] = {
         Perm.BROKERS_VIEW,
         Perm.RESERVATIONS_VIEW,
         Perm.CONTRACTS_VIEW,
+        Perm.PROPOSALS_VIEW,
     },
     Role.COMERCIAL: _BASE
     | {
@@ -65,9 +70,25 @@ MATRIX: dict[Role, frozenset[Perm]] = {
         Perm.RESERVATIONS_MANAGE,
         Perm.CONTRACTS_VIEW,
         Perm.CONTRACTS_MANAGE,
+        Perm.LEADS_VIEW,
+        Perm.LEADS_MANAGE,
+        Perm.PROPOSALS_VIEW,
+        Perm.PROPOSALS_MANAGE,
     },
-    # Corretor: acesso a compradores/reservas só dos próprios clientes chega na Fase 2b (escopo por corretor).
-    Role.CORRETOR: _BASE,
+    # Corretor (Fase 2c): só os PRÓPRIOS leads, clientes, propostas e reservas — o filtro por corretor
+    # é aplicado em app/auth/scope.py. Exige vínculo brokers.user_id; sem contratos nem cadastro
+    # de corretores.
+    Role.CORRETOR: _BASE
+    | {
+        Perm.CUSTOMERS_VIEW,
+        Perm.CUSTOMERS_MANAGE,
+        Perm.RESERVATIONS_VIEW,
+        Perm.RESERVATIONS_MANAGE,
+        Perm.LEADS_VIEW,
+        Perm.LEADS_MANAGE,
+        Perm.PROPOSALS_VIEW,
+        Perm.PROPOSALS_MANAGE,
+    },
     Role.LEITURA: _BASE,
 }
 

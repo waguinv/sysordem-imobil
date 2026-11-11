@@ -13,8 +13,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.auth.deps import AuthContext, require
 from app.auth.rbac import Perm
+from app.auth.scope import Scope, check_customer, customer_visible, resolve_broker, scope_for
 from app.core.config import get_settings
-from app.models import Block, Broker, Customer, Development, Lot, Reservation
+from app.models import Block, Broker, Customer, Development, Lot, Membership, Reservation
 from app.services import audit
 from app.services import reservations as svc
 
@@ -43,6 +44,7 @@ class CustomerIn(BaseModel):
     city: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, min_length=2, max_length=2)
     notes: str | None = Field(default=None, max_length=2000)
+    broker_id: uuid.UUID | None = None  # corretor responsável (para o corretor, é sempre ele mesmo)
 
     _doc = field_validator("document")(classmethod(lambda cls, v: _digits_doc(v)))
 
@@ -59,6 +61,7 @@ class CustomerUpdate(BaseModel):
     city: str | None = Field(default=None, max_length=120)
     state: str | None = Field(default=None, min_length=2, max_length=2)
     notes: str | None = Field(default=None, max_length=2000)
+    broker_id: uuid.UUID | None = None  # só perfis com visão da empresa trocam o responsável
     reason: str = Field(min_length=3, max_length=500)
 
 
@@ -72,6 +75,7 @@ class CustomerOut(BaseModel):
     city: str | None
     state: str | None
     notes: str | None
+    broker_id: uuid.UUID | None
     created_at: datetime
 
 
@@ -81,6 +85,7 @@ class BrokerIn(BaseModel):
     document: str | None = Field(default=None, max_length=20)
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=30)
+    user_id: uuid.UUID | None = None  # usuário da equipe que acessa o sistema como este corretor
 
     _doc = field_validator("document")(classmethod(lambda cls, v: _digits_doc(v)))
 
@@ -91,6 +96,7 @@ class BrokerUpdate(BaseModel):
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=30)
     is_active: bool | None = None
+    user_id: uuid.UUID | None = None
     reason: str = Field(min_length=3, max_length=500)
 
 
@@ -102,6 +108,7 @@ class BrokerOut(BaseModel):
     email: str | None
     phone: str | None
     is_active: bool
+    user_id: uuid.UUID | None
 
 
 class ReservationIn(BaseModel):
@@ -180,8 +187,11 @@ def _res_out(row: Any) -> ReservationOut:
     )
 
 
-def _get_res_out(ctx: AuthContext, res_id: uuid.UUID) -> ReservationOut:
-    row = ctx.db.execute(_reservation_query(ctx.tenant_id).where(Reservation.id == res_id)).one_or_none()
+def _get_res_out(ctx: AuthContext, res_id: uuid.UUID, scope: Scope | None = None) -> ReservationOut:
+    stmt = _reservation_query(ctx.tenant_id).where(Reservation.id == res_id)
+    if scope is not None and scope.restricted:
+        stmt = stmt.where(Reservation.broker_id == scope.broker_id)
+    row = ctx.db.execute(stmt).one_or_none()
     if row is None:
         raise _404("Reserva")
     return _res_out(row)
@@ -191,6 +201,34 @@ def _business(e: svc.ReservationError) -> HTTPException:
     if isinstance(e, svc.NotFoundError):
         return HTTPException(status_code=404, detail=str(e))
     return HTTPException(status_code=409, detail=str(e))
+
+
+def _check_broker_ref(ctx: AuthContext, broker_id: uuid.UUID | None) -> None:
+    if broker_id is None:
+        return
+    found = ctx.db.scalar(select(Broker.id).where(Broker.id == broker_id, Broker.tenant_id == ctx.tenant_id))
+    if found is None:
+        raise _404("Corretor")
+
+
+def _check_member(ctx: AuthContext, user_id: uuid.UUID | None, broker_id: uuid.UUID | None = None) -> None:
+    """O usuário ligado ao corretor deve ser membro ativo da empresa e não estar ligado a outro corretor."""
+    if user_id is None:
+        return
+    member = ctx.db.scalar(
+        select(Membership.id).where(
+            Membership.tenant_id == ctx.tenant_id,
+            Membership.user_id == user_id,
+            Membership.is_active.is_(True),
+        )
+    )
+    if member is None:
+        raise HTTPException(status_code=422, detail="Usuário não é membro ativo da empresa")
+    other = ctx.db.scalar(
+        select(Broker.id).where(Broker.tenant_id == ctx.tenant_id, Broker.user_id == user_id)
+    )
+    if other is not None and other != broker_id:
+        raise HTTPException(status_code=409, detail="Usuário já está ligado a outro corretor")
 
 
 # ─────────────────────────── compradores ───────────────────────────
@@ -203,6 +241,9 @@ def list_customers(
     limit: int = Query(default=100, ge=1, le=500),
 ) -> list[Customer]:
     stmt = select(Customer).where(Customer.tenant_id == ctx.tenant_id)
+    scope = scope_for(ctx)
+    if scope.restricted:
+        stmt = stmt.where(customer_visible(scope))
     if q:
         like = f"%{q.lower()}%"
         digits = re.sub(r"\D", "", q)
@@ -215,6 +256,8 @@ def list_customers(
 
 @router.post("/customers", response_model=CustomerOut, status_code=201)
 def create_customer(body: CustomerIn, ctx: AuthContext = Depends(require(Perm.CUSTOMERS_MANAGE))) -> Customer:
+    body.broker_id = resolve_broker(scope_for(ctx), body.broker_id)
+    _check_broker_ref(ctx, body.broker_id)
     if body.document and ctx.db.scalar(
         select(Customer.id).where(Customer.tenant_id == ctx.tenant_id, Customer.document == body.document)
     ):
@@ -240,6 +283,7 @@ def create_customer(body: CustomerIn, ctx: AuthContext = Depends(require(Perm.CU
 def get_customer(
     customer_id: uuid.UUID, ctx: AuthContext = Depends(require(Perm.CUSTOMERS_VIEW))
 ) -> Customer:
+    check_customer(ctx, scope_for(ctx), customer_id)
     c = ctx.db.scalar(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == ctx.tenant_id))
     if c is None:
         raise _404("Comprador")
@@ -250,6 +294,12 @@ def get_customer(
 def update_customer(
     customer_id: uuid.UUID, body: CustomerUpdate, ctx: AuthContext = Depends(require(Perm.CUSTOMERS_MANAGE))
 ) -> Customer:
+    scope = scope_for(ctx)
+    check_customer(ctx, scope, customer_id)
+    if "broker_id" in body.model_fields_set:
+        if scope.restricted:
+            raise HTTPException(status_code=403, detail="Só a gestão comercial troca o corretor responsável")
+        _check_broker_ref(ctx, body.broker_id)
     c = ctx.db.scalar(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == ctx.tenant_id))
     if c is None:
         raise _404("Comprador")
@@ -285,6 +335,7 @@ def list_brokers(
 
 @router.post("/brokers", response_model=BrokerOut, status_code=201)
 def create_broker(body: BrokerIn, ctx: AuthContext = Depends(require(Perm.BROKERS_MANAGE))) -> Broker:
+    _check_member(ctx, body.user_id)
     b = Broker(tenant_id=ctx.tenant_id, **body.model_dump())
     ctx.db.add(b)
     ctx.db.flush()
@@ -308,6 +359,8 @@ def update_broker(
     b = ctx.db.scalar(select(Broker).where(Broker.id == broker_id, Broker.tenant_id == ctx.tenant_id))
     if b is None:
         raise _404("Corretor")
+    if "user_id" in body.model_fields_set:
+        _check_member(ctx, body.user_id, broker_id=b.id)
     changes = body.model_dump(exclude_unset=True, exclude={"reason"})
     for k, v in changes.items():
         setattr(b, k, v)
@@ -339,6 +392,9 @@ def list_reservations(
 ) -> list[ReservationOut]:
     svc.expire_due(ctx.db, ctx.tenant_id)
     stmt = _reservation_query(ctx.tenant_id)
+    scope = scope_for(ctx)
+    if scope.restricted:
+        stmt = stmt.where(Reservation.broker_id == scope.broker_id)
     if status_:
         stmt = stmt.where(Reservation.status == status_)
     if development_id:
@@ -355,13 +411,17 @@ def create_reservation(
     hours = body.hours or s.reservation_default_hours
     if hours > s.reservation_max_hours:
         raise HTTPException(status_code=422, detail=f"Validade máxima: {s.reservation_max_hours} horas")
+    scope = scope_for(ctx)
+    broker_id = resolve_broker(scope, body.broker_id)
+    if scope.restricted:
+        check_customer(ctx, scope, body.customer_id)
     try:
         res = svc.create(
             ctx.db,
             tenant_id=ctx.tenant_id,
             lot_id=body.lot_id,
             customer_id=body.customer_id,
-            broker_id=body.broker_id,
+            broker_id=broker_id,
             hours=hours,
             actor=ctx.user.id,
             notes=body.notes,
@@ -377,10 +437,11 @@ def create_reservation(
 def get_reservation(
     res_id: uuid.UUID, ctx: AuthContext = Depends(require(Perm.RESERVATIONS_VIEW))
 ) -> ReservationOut:
-    out = _get_res_out(ctx, res_id)
+    scope = scope_for(ctx)
+    out = _get_res_out(ctx, res_id, scope)
     if out.status == "ativa":
         svc.expire_due(ctx.db, ctx.tenant_id, lot_id=out.lot_id)
-        out = _get_res_out(ctx, res_id)
+        out = _get_res_out(ctx, res_id, scope)
     return out
 
 
@@ -388,6 +449,7 @@ def get_reservation(
 def cancel_reservation(
     res_id: uuid.UUID, body: ReservationClose, ctx: AuthContext = Depends(require(Perm.RESERVATIONS_MANAGE))
 ) -> ReservationOut:
+    _get_res_out(ctx, res_id, scope_for(ctx))  # 404 fora do escopo do corretor
     try:
         svc.cancel(ctx.db, tenant_id=ctx.tenant_id, res_id=res_id, actor=ctx.user.id, reason=body.reason)
     except svc.ReservationError as e:

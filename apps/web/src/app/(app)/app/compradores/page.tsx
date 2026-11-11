@@ -23,7 +23,7 @@ export default async function CompradoresPage({ searchParams }: { searchParams: 
           Clientes de {me.tenant.name}. Dados pessoais visíveis só a perfis autorizados.
         </p>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
           <CardContent className="space-y-3">
             <form className="relative" role="search">

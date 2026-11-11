@@ -2,6 +2,7 @@ import { ArrowLeft, FileSignature, History } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ProposalPanel } from "@/components/lots/proposal-panel";
 import { ReservationPanel } from "@/components/lots/reservation-panel";
 import { ActionForm, Field, selectClass } from "@/components/ui/action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/components/ui/primitives";
@@ -74,6 +75,7 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
       )}
 
       <ReservationPanel lot={lot} me={me} />
+      <ProposalPanel lot={lot} me={me} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         {canStatus && (

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Validade padrão da reserva de lote (hipótese: 72 h; configurável por empresa em fase futura)
     reservation_default_hours: int = 72
     reservation_max_hours: int = 720
+    # Validade padrão/máxima da proposta em dias (hipótese: 7 / 90)
+    proposal_default_days: int = 7
+    proposal_max_days: int = 90
 
     login_max_failures: int = 5
     login_window_seconds: int = 900
