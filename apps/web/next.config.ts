@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   allowedDevOrigins: ["127.0.0.1"],
   poweredByHeader: false,
+  // Importação de extrato bancário (Fase 4b): arquivos de até 2 MB passam por Server Action.
+  experimental: { serverActions: { bodySizeLimit: "3mb" } },
   async headers() {
     return [{ source: "/:path*", headers: security }];
   },

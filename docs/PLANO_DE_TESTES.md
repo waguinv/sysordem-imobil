@@ -77,6 +77,13 @@
 - Divergência (cobrança cancelada por recebimento manual e paga mesmo assim; valor acima do devido) e resolução; expiração; cancelamento; renegociação e distrato cancelam a pendente.
 - RBAC (comercial/leitura/corretor sem acesso); `webhook_events` append-only e `charges` sem DELETE; RLS sem contexto; sandbox desligado em produção.
 
+## Implementado (Fase 4b) — `tests/test_fase4b.py` e `tests/test_bank_statement.py`
+- Leitura (sem banco): OFX SGML e XML, FITID ausente (lançamentos idênticos distintos e ids estáveis), CSV com títulos/saldo/BOM, colunas crédito/débito, formatos de valor e data, arquivos inválidos com a linha do erro.
+- Importação: conciliação automática do par único (recebimento e conta paga), arquivo repetido recusado, período sobreposto sem duplicar, OFX pela API, resumo.
+- Ambiguidade (dois recebimentos iguais → manual com candidatos), lançamento já usado não serve a outra linha, conciliação de lote com soma exata, soma errada, tipo errado (crédito com conta paga).
+- Desfazer (RBAC `finance:reverse`, histórico preservado), ignorar/voltar, conciliada não se ignora, estornos desfazem a conciliação, dinheiro fora.
+- Isolamento (empresa B não vê nem usa lançamentos da A), RBAC e append-only (DELETE/UPDATE negados pelo banco), RLS sem contexto.
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

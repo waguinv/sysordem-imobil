@@ -29,3 +29,5 @@
 28. Relatórios exigidos pelo contador (decisão 9): os três atuais (fluxo, inadimplência, vendas) bastam? Precisa de DRE/regime de competência ou integração com sistema contábil?
 29. Cobrança emitida automaticamente (ex.: X dias antes do vencimento, com envio por e-mail/WhatsApp) ou só sob demanda, como hoje?
 30. Pagamento recebido a mais ou em parcela já quitada (divergência): devolver ao pagador ou abater das próximas parcelas?
+31. Conciliação: o PSP credita o valor líquido de tarifas? Se sim, lançar a tarifa como conta paga automaticamente na conciliação ou só ignorar a diferença?
+32. Integração direta com o banco (Open Finance / API de extrato) ou basta importar OFX/CSV? Quais bancos a empresa usa?

@@ -509,3 +509,84 @@ export type ChargesSummary = {
   paid_month_count: number;
   paid_month_total: string;
 };
+
+// ── Fase 4b: conciliação bancária ──
+
+export type BankAccount = {
+  id: string;
+  name: string;
+  bank_name: string | null;
+  branch: string | null;
+  account_number: string | null;
+  is_active: boolean;
+};
+
+export type BankStatement = {
+  id: string;
+  file_name: string;
+  format: "ofx" | "csv";
+  period_start: string | null;
+  period_end: string | null;
+  lines_total: number;
+  lines_new: number;
+  auto_matched: number;
+  imported_by_name: string | null;
+  created_at: string;
+};
+
+export type StatementImport = BankStatement & { duplicates: number };
+
+export type StatementLine = {
+  id: string;
+  bank_account_id: string;
+  posted_on: string;
+  amount: string;
+  description: string;
+  status: "pendente" | "conciliada" | "ignorada";
+  ignored_reason: string | null;
+  matched_count: number;
+};
+
+export type ReconTarget = {
+  kind: "recebimento" | "pagamento";
+  id: string;
+  amount: string;
+  on: string;
+  label: string;
+  detail: string;
+  link_id: string;
+  exact: boolean;
+};
+
+export type ReconMatch = {
+  id: string;
+  kind: "recebimento" | "pagamento";
+  target_id: string;
+  amount: string;
+  auto: boolean;
+  created_by_name: string | null;
+  created_at: string;
+  undone_at: string | null;
+  undo_reason: string | null;
+};
+
+export type StatementLineDetail = StatementLine & {
+  account_name: string;
+  statement_file: string;
+  matches: ReconMatch[];
+  targets: ReconTarget[];
+};
+
+export type ReconSummary = {
+  pending_count: number;
+  pending_credits: string;
+  pending_debits: string;
+  reconciled_count: number;
+  ignored_count: number;
+  unmatched_payments_count: number;
+  unmatched_payments_total: string;
+  unmatched_payables_count: number;
+  unmatched_payables_total: string;
+  since: string;
+  last_import_at: string | null;
+};

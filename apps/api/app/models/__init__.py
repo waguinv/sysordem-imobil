@@ -629,3 +629,79 @@ class WebhookEvent(Base):
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     result: Mapped[str] = mapped_column(String(20), nullable=False, default="recebido")
     detail: Mapped[str | None] = mapped_column(Text)
+
+
+# ───────────────────────── Fase 4b: contas bancárias, extratos e conciliação ─────────────────────────
+
+
+class BankAccount(Base):
+    """Conta bancária da empresa (só identificação; nunca credenciais)."""
+
+    __tablename__ = "bank_accounts"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    bank_name: Mapped[str | None] = mapped_column(String(80))
+    branch: Mapped[str | None] = mapped_column(String(20))
+    account_number: Mapped[str | None] = mapped_column(String(30))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class BankStatement(Base):
+    """Arquivo de extrato importado (append-only)."""
+
+    __tablename__ = "bank_statements"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    bank_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    file_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    format: Mapped[str] = mapped_column(String(10), nullable=False)
+    period_start: Mapped[date | None] = mapped_column(Date)
+    period_end: Mapped[date | None] = mapped_column(Date)
+    lines_total: Mapped[int] = mapped_column(Integer, nullable=False)
+    lines_new: Mapped[int] = mapped_column(Integer, nullable=False)
+    auto_matched: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    imported_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class StatementLine(Base):
+    """Lançamento do extrato: + crédito, − débito. Dedup por (empresa, conta, fit_id)."""
+
+    __tablename__ = "statement_lines"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    bank_account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    statement_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    posted_on: Mapped[date] = mapped_column(Date, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    description: Mapped[str] = mapped_column(String(300), nullable=False)
+    fit_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    ignored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ignored_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    ignored_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Reconciliation(Base):
+    """Liga uma linha do extrato a um recebimento ou ao pagamento de uma conta. Desfazer não apaga."""
+
+    __tablename__ = "reconciliations"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    line_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    payment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    payable_event_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    auto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    undone_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    undo_reason: Mapped[str | None] = mapped_column(Text)

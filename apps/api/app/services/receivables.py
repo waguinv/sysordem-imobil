@@ -25,6 +25,7 @@ from app.models import ContractVersion, Installment, Payment, PaymentReversal, S
 from app.services import audit
 from app.services.finance import Settlement, build_schedule, quote, split_payment
 from app.services.payables import on_payment, on_reversal
+from app.services.reconciliation import undo_for_payment
 
 
 class ReceivableError(Exception):
@@ -241,6 +242,7 @@ def reverse_payment(
         inst.paid_at = None
     db.flush()
     on_reversal(db, p)  # Fase 3b: estorna comissão e repasse gerados pelo recebimento
+    undo_for_payment(db, p, reason=f"recebimento estornado: {reason}", actor=actor)  # Fase 4b
     audit.record(
         db,
         tenant_id=tenant_id,
