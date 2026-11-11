@@ -1,8 +1,8 @@
 # Decisões a confirmar com o cliente
 1. A empresa atua como loteadora, intermediadora ou ambas?
 2. Tipo e localização dos empreendimentos; requisitos municipais aplicáveis.
-3. Forma de pagamento ao proprietário da área e base da comissão.
-4. Base e momento de cálculo da comissão dos corretores.
+3. Forma de pagamento ao proprietário da área e base da comissão. *Fase 3b adotou (hipótese): repasse de % configurável por empreendimento sobre cada parcela recebida.*
+4. Base e momento de cálculo da comissão dos corretores. *Fase 3b adotou (configurável por empresa): padrão 5% sobre cada valor de parcela recebido; alternativa: sobre o total na assinatura; % próprio por corretor.*
 5. Regras para juros, multa, correção, antecipação, renegociação e distrato. *Fase 3a adotou (a validar com jurídico/contábil): multa única + mora pro rata die (mês de 30 dias) sobre a parte paga em atraso; correção monetária ainda não aplicada; antecipação, renegociação e distrato ficam para a 3c.*
 6. Banco/PSP prioritário e meios de cobrança do MVP.
 7. Formato da planta (DWG, KML, GeoJSON, PDF, imagem etc.). *Hoje: mapa esquemático por quadra; `lots.geometry` (GeoJSON) reservado.*
@@ -22,3 +22,5 @@
 21. Fonte e periodicidade dos índices de correção (IPCA/IGP-M/INCC): manual mensal, arquivo ou integração (ex.: séries do Banco Central)? Aplicar anualmente ou mensalmente?
 22. Vencimento da entrada: hoje vence no dia da assinatura — confirmar se deve ser configurável.
 23. O perfil comercial deve consultar a situação de pagamento dos clientes? (hoje só owner, admin e financeiro veem o financeiro)
+24. Retenção de impostos (IR/ISS/INSS) sobre comissões e repasses e emissão de recibos/RPA — hoje a conta a pagar é pelo valor bruto.
+25. Corretor deve ver o próprio extrato de comissões no sistema? (hoje só o financeiro vê)

@@ -24,6 +24,7 @@ from app.models import ContractVersion, Lot, Reservation, SalesContract
 from app.services import audit
 from app.services.finance import first_installment, money
 from app.services.lots import LotStatus, apply_status
+from app.services.payables import snapshot_on_sign
 from app.services.policy import Policy, get_policy
 from app.services.receivables import generate_schedule
 from app.services.reservations import expire_due
@@ -297,6 +298,13 @@ def sign(
         extra={"contract_id": str(c.id)},
     )
     db.flush()
+    signed = db.scalar(
+        select(ContractVersion).where(
+            ContractVersion.contract_id == c.id, ContractVersion.version == c.current_version
+        )
+    )
+    assert signed is not None
+    snapshot_on_sign(db, c, total=signed.total_price)  # Fase 3b: congela comissão/repasse
     generate_schedule(db, c, actor=actor)  # Fase 3a: cronograma de parcelas nasce na assinatura
     audit.record(
         db,

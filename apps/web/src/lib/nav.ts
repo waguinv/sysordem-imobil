@@ -67,7 +67,7 @@ export const NAV: NavEntry[] = [
         permission: "finance:view",
         alsoActive: ["/app/financeiro/parcelas"],
       },
-      { title: "Contas a pagar", href: "/app/financeiro/pagar", permission: "tenant:view", soon: "Fase 3b" },
+      { title: "Contas a pagar", href: "/app/financeiro/pagar", permission: "finance:view" },
       {
         title: "Conciliação",
         href: "/app/financeiro/conciliacao",
@@ -76,7 +76,7 @@ export const NAV: NavEntry[] = [
       },
     ],
   },
-  { title: "Comissões", href: "/app/comissoes", icon: HandCoins, permission: "tenant:view", soon: "Fase 3b" },
+  { title: "Comissões e repasses", href: "/app/comissoes", icon: HandCoins, permission: "finance:view" },
   {
     title: "Relatórios",
     href: "/app/relatorios",
@@ -93,6 +93,11 @@ export const NAV: NavEntry[] = [
       {
         title: "Política de contratos",
         href: "/app/configuracoes/politica-contratos",
+        permission: "settings:manage",
+      },
+      {
+        title: "Regras de comissão",
+        href: "/app/configuracoes/financeiro",
         permission: "settings:manage",
       },
       { title: "Empresa", href: "/app/empresa", icon: Building2, permission: "tenant:view", soon: "Fase 5" },

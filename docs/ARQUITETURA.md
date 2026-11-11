@@ -68,6 +68,17 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Permissões: `finance:view`, `finance:manage` (registrar), `finance:reverse` (estornar) — owner, admin e financeiro. Comercial e corretor não veem o financeiro.
 - Web: Financeiro → Contas a receber (resumo: vencido, vence em 30 dias, em aberto, recebido no mês; filtros e busca), tela da parcela (valor para quitar hoje, recebimento, estorno) e parcelas na tela do contrato.
 
+## Implementado na Fase 3b — comissões, repasses e contas a pagar
+- Tabelas (RLS + FKs compostas; migration `0008`): `finance_settings`, `payables`, `payable_events` (append-only) e `participations` (append-only, exceto a coluna `payable_id`, única com `GRANT UPDATE`). Colunas novas: `brokers.commission_pct`, `developments.owner_share_pct` e, em `sales_contracts`, o snapshot `commission_pct`, `commission_basis`, `owner_share_pct`, `land_owner_id`.
+- **Comissão** (hipótese, decisão 4): % do corretor ou o padrão da empresa (5%). Base/momento configurável: **sobre o recebido** (padrão: a cada valor de parcela recebido, entrada inclusa) ou **na assinatura** (sobre o total do contrato, de uma vez).
+- **Repasse ao proprietário da área** (hipótese, decisão 3): % do empreendimento sobre cada valor de parcela recebido (permuta financeira). Exige o proprietário definido no empreendimento.
+- Regras **congeladas no contrato na assinatura**; contratos assinados antes da 3b não geram comissão/repasse. A base é a parte da **parcela** recebida — multa e juros de mora ficam com a empresa.
+- Estorno de recebimento lança o **negativo** de cada crédito (um estorno por crédito, índice único); se o original já foi pago, o negativo abate do próximo acerto. Saldo ≤ 0 não gera conta.
+- **Acerto**: os créditos pendentes de um beneficiário viram uma conta a pagar (`/participations/settle`); cancelar a conta devolve os créditos para pendente.
+- **Contas a pagar**: manuais (fornecedor, obra, imposto, marketing, outro) ou geradas pelo acerto (comissão, repasse). Pagamento (data não futura), estorno e cancelamento com motivo, sempre registrados em `payable_events`.
+- Permissões: `finance:view|manage|reverse` (owner, admin, financeiro); regras de comissão exigem `settings:manage`; % do proprietário exige `owners:manage`.
+- Web: Comissões e repasses (saldo a acertar, gerar conta, lançamentos), Financeiro → Contas a pagar (resumo, filtros, nova conta, tela da conta), Configurações → Regras de comissão, e % de comissão em Corretores.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

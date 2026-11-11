@@ -79,6 +79,7 @@ export type Broker = {
   phone: string | null;
   is_active: boolean;
   user_id: string | null;
+  commission_pct: string | null;
 };
 
 export type Member = {
@@ -288,4 +289,85 @@ export type ReceivablesSummary = {
   due_30_count: number;
   received_month: string;
   received_month_late_charges: string;
+};
+
+export type FinanceSettings = {
+  commission_basis: "recebimento" | "assinatura";
+  default_commission_pct: string;
+  is_default: boolean;
+};
+
+export type OwnerShare = {
+  development_id: string;
+  development_name: string;
+  land_owner_id: string | null;
+  land_owner_name: string | null;
+  owner_share_pct: string;
+};
+
+export type ParticipationKind = "comissao" | "proprietario";
+
+export type Balance = {
+  kind: ParticipationKind;
+  beneficiary_id: string;
+  beneficiary_name: string;
+  pending_total: string;
+  pending_count: number;
+  paid_total: string;
+};
+
+export type ParticipationEntry = {
+  id: string;
+  kind: ParticipationKind;
+  beneficiary_id: string;
+  beneficiary_name: string;
+  contract_id: string;
+  contract_number: string;
+  base: string;
+  pct: string;
+  amount: string;
+  is_reversal: boolean;
+  on_signature: boolean;
+  payable_id: string | null;
+  payable_status: string | null;
+  created_at: string;
+};
+
+export type Payable = {
+  id: string;
+  description: string;
+  category: string;
+  payee_name: string;
+  development_id: string | null;
+  development_name: string | null;
+  due_date: string;
+  amount: string;
+  status: "aberta" | "paga" | "cancelada";
+  overdue: boolean;
+  paid_on: string | null;
+  method: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type PayableDetail = Payable & {
+  events: {
+    kind: string;
+    event_date: string | null;
+    method: string | null;
+    reason: string | null;
+    author_name: string | null;
+    created_at: string;
+  }[];
+  participations_count: number;
+};
+
+export type PayablesSummary = {
+  open_total: string;
+  open_count: number;
+  overdue_total: string;
+  overdue_count: number;
+  due_30_total: string;
+  paid_month: string;
+  pending_participations: string;
 };

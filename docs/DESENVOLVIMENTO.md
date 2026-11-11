@@ -55,7 +55,7 @@ No Claude Code (desktop), `.claude/launch.json` já define as configurações `a
 ```bash
 cd apps/api
 TEST_ADMIN_DATABASE_URL=postgresql+psycopg://imobil_owner:<senha-local>@127.0.0.1:55432/postgres \
-  .venv/Scripts/python -m pytest          # 152 testes; sem a variável, os testes de banco são pulados
+  .venv/Scripts/python -m pytest          # 168 testes; sem a variável, os testes de banco são pulados
 .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check . && .venv/Scripts/mypy
 
 cd apps/web

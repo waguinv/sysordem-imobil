@@ -48,6 +48,7 @@ export async function createBrokerAction(_p: FormState, f: FormData): Promise<Fo
           document: opt(f, "document"),
           email: opt(f, "email"),
           phone: opt(f, "phone"),
+          commission_pct: opt(f, "commission_pct")?.replace(",", ".") ?? null,
         }),
       }),
     "Corretor cadastrado",

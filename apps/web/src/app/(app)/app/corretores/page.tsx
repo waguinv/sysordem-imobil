@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/primitives";
 import { createBrokerAction } from "@/lib/actions-fase2a";
 import { linkBrokerUserAction } from "@/lib/actions-fase2c";
+import { setBrokerCommissionAction } from "@/lib/actions-fase3b";
 import { api, can, getMe } from "@/lib/session";
 import type { Broker, Member } from "@/lib/types";
 import { BrokerToggle } from "./broker-toggle";
@@ -54,6 +55,7 @@ export default async function CorretoresPage() {
                           b.email,
                           b.phone,
                           b.user_id && `acesso: ${userName.get(b.user_id) ?? "usuário vinculado"}`,
+                          `comissão ${b.commission_pct ? `${b.commission_pct.replace(".", ",")}%` : "padrão"}`,
                         ]
                           .filter(Boolean)
                           .join(" · ") || "sem contato"}
@@ -97,9 +99,42 @@ export default async function CorretoresPage() {
                   <Field label="Telefone" htmlFor="phone">
                     <Input id="phone" name="phone" type="tel" maxLength={30} />
                   </Field>
+                  <Field label="Comissão (%) — vazio usa o padrão da empresa" htmlFor="commission_pct">
+                    <Input id="commission_pct" name="commission_pct" inputMode="decimal" maxLength={6} />
+                  </Field>
                 </ActionForm>
               </CardContent>
             </Card>
+            {brokers.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle>Comissão do corretor</CardTitle>
+                    <CardDescription>
+                      Vale para contratos assinados a partir de agora. Vazio = padrão da empresa.
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ActionForm action={setBrokerCommissionAction} submitLabel="Salvar comissão">
+                    <div className="grid grid-cols-[minmax(0,1fr)_100px] gap-3">
+                      <Field label="Corretor" htmlFor="comm-broker">
+                        <select id="comm-broker" name="broker_id" className={selectClass} required>
+                          {brokers.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="%" htmlFor="comm-pct">
+                        <Input id="comm-pct" name="commission_pct" inputMode="decimal" maxLength={6} />
+                      </Field>
+                    </div>
+                  </ActionForm>
+                </CardContent>
+              </Card>
+            )}
             {brokers.length > 0 && (
               <Card>
                 <CardHeader>
