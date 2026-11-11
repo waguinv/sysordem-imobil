@@ -42,6 +42,7 @@ class Perm(StrEnum):
     FINANCE_VIEW = "finance:view"  # parcelas, contas a receber, recebimentos
     FINANCE_MANAGE = "finance:manage"  # registrar recebimentos
     FINANCE_REVERSE = "finance:reverse"  # estornar recebimentos
+    SITE_MANAGE = "site:manage"  # Fase 5a: publicar site e empreendimentos (owner/admin)
 
 
 _ALL = frozenset(Perm)

@@ -84,6 +84,12 @@
 - Desfazer (RBAC `finance:reverse`, histórico preservado), ignorar/voltar, conciliada não se ignora, estornos desfazem a conciliação, dinheiro fora.
 - Isolamento (empresa B não vê nem usa lançamentos da A), RBAC e append-only (DELETE/UPDATE negados pelo banco), RLS sem contexto.
 
+## Implementado (Fase 5a) — `tests/test_fase5a.py`
+- Nada é público até publicar (site e empreendimento); publicar exige texto público; despublicar some; slug inexistente e site fora do ar = 404.
+- DTO público: chaves exatamente as permitidas (site, empreendimento, lote); reservado/vendido viram "indisponível" sem preço; JSON público não contém nome/CPF do comprador, número do contrato, descrição interna, empreendimento não publicado nem status internos; ocultar preços.
+- Formulário: lead com origem site, consentimento e lote de interesse; mesmo telefone em outro formato não duplica; sem consentimento/contato/DDD → 422; lote ou empreendimento não publicado → 404; campo-isca não grava; limite por contato e por empresa (429); formulário desligado → 404.
+- Isolamento (empreendimento da A pelo endereço da B = 404; B não publica da A; empresa inativa sai do ar) e RBAC (`site:manage` só owner/admin).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

@@ -18,7 +18,7 @@
 17. ~~Price ou SAC~~ **Decidido:** a empresa define os sistemas permitidos e o padrão; em cada contrato, empresa e cliente escolhem. Ajuste de centavos na última parcela (adotado para a Fase 3).
 18. Assinatura eletrônica gratuita e integrável — **recomendação: Documenso (Community Edition, open source AGPL-3.0, auto-hospedado, com API e webhooks)**, rodando junto no Docker Compose. Alternativas SaaS com plano grátis (ZapSign, Autentique) limitam documentos/mês e, pelas fontes consultadas, exigem plano pago para usar a API em produção. Confirmar a escolha e validar com jurídico o tipo de assinatura exigido (eletrônica avançada × ICP-Brasil) para o registro dos contratos.
 19. Validade padrão da proposta (adotado: 7 dias; máx. 90) e se proposta aceita deve recusar automaticamente as concorrentes no mesmo lote (hoje elas ficam abertas e não podem mais ser aceitas).
-20. Quais origens de lead usar e se haverá captura automática (formulário do site, WhatsApp) — prevista com o site público (Fase 5).
+20. Quais origens de lead usar e se haverá captura automática (formulário do site, WhatsApp) — prevista com o site público (Fase 5). *Fase 5a: formulário do site cria lead com origem "Site" e consentimento.*
 21. Fonte e periodicidade dos índices de correção (IPCA/IGP-M/INCC): manual mensal, arquivo ou integração (ex.: séries do Banco Central)? Aplicar anualmente ou mensalmente?
 22. Vencimento da entrada: hoje vence no dia da assinatura — confirmar se deve ser configurável.
 23. O perfil comercial deve consultar a situação de pagamento dos clientes? (hoje só owner, admin e financeiro veem o financeiro)
@@ -31,3 +31,5 @@
 30. Pagamento recebido a mais ou em parcela já quitada (divergência): devolver ao pagador ou abater das próximas parcelas?
 31. Conciliação: o PSP credita o valor líquido de tarifas? Se sim, lançar a tarifa como conta paga automaticamente na conciliação ou só ignorar a diferença?
 32. Integração direta com o banco (Open Finance / API de extrato) ou basta importar OFX/CSV? Quais bancos a empresa usa?
+33. Site público: quem publica (hoje owner/admin; incluir o comercial?), mostrar preços por padrão, e mostrar "reservado" separado de "vendido" (hoje ambos aparecem como indisponível)?
+34. Leads do site: distribuir automaticamente para corretores (rodízio) ou o comercial distribui? Fotos, planta e vídeo no site — onde guardar (armazenamento privado com URL temporária)?

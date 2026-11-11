@@ -50,10 +50,14 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 - Segredo: `PAYMENTS_SANDBOX_SECRET` (≥ 32 caracteres, fora do Git). Sem ele, o sandbox gera um segredo aleatório por processo (serve para o simulador; webhooks externos exigem o fixo). O sandbox fica **desligado em produção** (`PAYMENTS_SANDBOX_ENABLED=true` força).
 - **PSP real (4c)**: credenciais por empresa em cofre/variáveis de ambiente (nunca em texto puro no banco), segredo de webhook por empresa e, se o PSP oferecer, mTLS/lista de IPs. Hoje o segredo do sandbox é único da plataforma.
 
+## Site público (Fase 5a)
+- Rotas `/api/v1/public/...` não exigem token. A empresa vem do `slug` da URL; o contexto RLS só é definido depois de confirmar empresa ativa **e** site publicado. Tudo o que sai passa por DTOs públicos de lista fechada.
+- O formulário de contato grava lead com consentimento LGPD; tem campo-isca e limite por empresa/contato. Como o web chama a API pelo servidor (BFF), a API não vê o IP do visitante: o limite por IP fica para quando houver proxy confiável repassando `X-Forwarded-For` (ou Redis + limite no próprio web).
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.
 - Convite de usuário por e-mail (hoje a senha inicial é definida por quem cria o vínculo) e redefinição de senha.
-- Rate limit na rota pública de webhooks.
+- Rate limit na rota pública de webhooks e limite por IP no formulário do site.
 - Onboarding de empresas (hoje via seed/SQL administrativo).
 - CSP com nonce no web, logs estruturados sem dados pessoais, monitoramento e alertas.

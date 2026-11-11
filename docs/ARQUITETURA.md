@@ -109,6 +109,15 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Web: Financeiro → Conciliação bancária (contas, resumo, importar, conciliar automaticamente, lista com filtros) e tela da linha (candidatos com seleção múltipla, ignorar, desfazer, histórico).
 - **Limitações**: valor líquido de tarifa do PSP (crédito menor que o recebimento) ainda não casa sozinho — concilia-se à mão só se houver lançamento com o valor exato; sem conexão direta com o banco (Open Finance/API de extrato) — o arquivo vem do internet banking.
 
+## Implementado na Fase 5a — site público
+- A Fase 5 foi dividida: **5a** site público (esta); **5b** portal do comprador; **5c** planos SaaS, onboarding e cobrança da assinatura.
+- Migration `0012`: `site_settings` (1 por empresa, RLS: publicado, nome, chamada, sobre, contatos, mostrar preços, formulário ligado), colunas `developments.site_published`/`site_description`/`site_published_at` (publicar exige texto público — check no banco) e `leads.consent_at`.
+- **Só vai ao ar o que foi publicado de propósito**: o site da empresa e cada empreendimento, com texto público **próprio** (a descrição interna nunca vai para o site). Despublicar some na hora. Publicação auditada (antes/depois).
+- **API pública sem login** (`/api/v1/public/sites/{slug}` e `/developments/{id}`): DTOs com lista fechada de campos (`Public*` em `app/api/v1/site.py`), testados chave a chave. Lote aparece só como **disponível/indisponível** (reservado, vendido e bloqueado viram "indisponível"); preço só dos disponíveis e só se a empresa quiser. Nunca: comprador, CPF, contrato, parcela, reserva, corretor, proprietário, inadimplência. `Cache-Control: no-store`. Empresa inativa, site despublicado e slug inexistente respondem o mesmo 404.
+- **Formulário de contato** (`POST .../leads`): vira lead com origem "Site" (ou nova anotação no lead em aberto com o mesmo e-mail/telefone — sem duplicar). Exige **consentimento** (registrado em `consent_at` e na anotação); campo-isca contra robôs (finge sucesso e não grava); limite por empresa (60/h) e por contato (3/h) — em memória do processo (mover para Redis com várias réplicas); resposta sempre igual (não revela se o contato já existia); auditoria sem dados pessoais.
+- Permissão nova `site:manage` (owner/admin — hipótese). Web: Site público no painel (dados do site, publicar empreendimentos) e páginas públicas `/s/{slug}` e `/s/{slug}/empreendimentos/{id}` (mapa por quadra, formulário com lote de interesse), mobile-first.
+- **Limitações**: endereço `/s/{slug}` no domínio do sistema (domínio próprio da empresa é a decisão 10); sem fotos/planta ainda; limite de envios por processo.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.
