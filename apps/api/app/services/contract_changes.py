@@ -37,6 +37,7 @@ from app.models import (
     SalesContract,
 )
 from app.services import audit
+from app.services.charges import cancel_pending_for, lock_pending
 from app.services.finance import build_schedule, money
 from app.services.lots import LotStatus, apply_status
 from app.services.payables import create_payable
@@ -118,6 +119,7 @@ def renegotiate(
     reason: str,
 ) -> Renegotiation:
     c, _lot = _lock_signed(db, tenant_id, contract_id)
+    lock_pending(db, tenant_id=tenant_id, contract_id=c.id)  # cobrança → parcela
     items = _open_installments(db, c.id, lock=True)
     if not items:
         raise ChangeError("Não há parcelas em aberto para renegociar")
@@ -163,6 +165,13 @@ def renegotiate(
     db.flush()
     for i in items:
         i.status = "renegociada"
+    cancel_pending_for(
+        db,
+        tenant_id=tenant_id,
+        installment_ids=[i.id for i in items],
+        reason=f"parcela renegociada (contrato {c.number})",
+        actor=actor,
+    )
     start = db.scalar(select(func.max(Installment.number)).where(Installment.contract_id == c.id)) or 0
     rows = build_schedule(
         total=new_balance,
@@ -257,10 +266,18 @@ def rescind(
     reason: str,
 ) -> Rescission:
     c, lot = _lock_signed(db, tenant_id, contract_id)
+    lock_pending(db, tenant_id=tenant_id, contract_id=c.id)  # cobrança → parcela
     items = _open_installments(db, c.id, lock=True)
     q = rescission_quote(db, c, retention_pct)
     for i in items:
         i.status = "cancelada"
+    cancel_pending_for(
+        db,
+        tenant_id=tenant_id,
+        installment_ids=[i.id for i in items],
+        reason=f"distrato do contrato {c.number}",
+        actor=actor,
+    )
     c.status = "distratado"
     apply_status(
         db,

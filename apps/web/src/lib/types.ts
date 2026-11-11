@@ -459,3 +459,53 @@ export type SalesReport = {
     rescissions: number;
   }[];
 };
+
+// ── Fase 4a: cobranças Pix/boleto e webhooks ──
+
+export type PaymentProviderInfo = { name: string; label: string; sandbox: boolean };
+
+export type Charge = {
+  id: string;
+  installment_id: string;
+  installment_number: number;
+  contract_id: string;
+  contract_number: string;
+  customer_id: string;
+  customer_name: string;
+  provider: string;
+  provider_label: string;
+  method: "pix" | "boleto";
+  external_id: string;
+  amount: string;
+  due_date: string;
+  status: "pendente" | "paga" | "cancelada" | "expirada" | "divergente" | "resolvida";
+  pix_code: string | null;
+  boleto_line: string | null;
+  paid_amount: string | null;
+  paid_on: string | null;
+  payment_id: string | null;
+  status_reason: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WebhookEventInfo = {
+  id: string;
+  event_id: string;
+  event_type: string;
+  received_at: string;
+  result: string;
+  detail: string | null;
+};
+
+export type ChargeDetail = Charge & { events: WebhookEventInfo[] };
+
+export type ChargesSummary = {
+  pending_count: number;
+  pending_total: string;
+  divergent_count: number;
+  divergent_total: string;
+  paid_month_count: number;
+  paid_month_total: string;
+};

@@ -23,6 +23,7 @@ from app.models import (
     User,
 )
 from app.services import receivables as svc
+from app.services.charges import cancel_pending_for, lock_pending
 
 router = APIRouter(tags=["financeiro"])
 
@@ -366,6 +367,7 @@ def quote_installment(
 def register_payment(
     installment_id: uuid.UUID, body: PaymentIn, ctx: AuthContext = Depends(require(Perm.FINANCE_MANAGE))
 ) -> InstallmentDetailOut:
+    lock_pending(ctx.db, tenant_id=ctx.tenant_id, installment_ids=[installment_id])  # cobrança → parcela
     try:
         svc.register_payment(
             ctx.db,
@@ -379,6 +381,14 @@ def register_payment(
         )
     except svc.ReceivableError as e:
         raise _business(e) from None
+    # Fase 4a: o valor da cobrança Pix/boleto pendente deixou de valer
+    cancel_pending_for(
+        ctx.db,
+        tenant_id=ctx.tenant_id,
+        installment_ids=[installment_id],
+        reason="recebimento registrado manualmente",
+        actor=ctx.user.id,
+    )
     return _detail(ctx, installment_id)
 
 

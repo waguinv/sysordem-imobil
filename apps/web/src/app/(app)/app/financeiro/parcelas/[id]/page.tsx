@@ -2,6 +2,7 @@ import { ArrowLeft, Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChargePanel } from "@/components/finance/charge-panel";
 import { ActionForm, Field, selectClass } from "@/components/ui/action-form";
 import {
   Badge,
@@ -23,7 +24,7 @@ import {
   pct,
 } from "@/lib/format";
 import { api, ApiError, can, getMe } from "@/lib/session";
-import type { InstallmentDetail } from "@/lib/types";
+import type { Charge, InstallmentDetail, PaymentProviderInfo } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Parcela" };
 
@@ -39,6 +40,10 @@ export default async function ParcelaPage({ params }: { params: Promise<{ id: st
     if (e instanceof ApiError && (e.status === 404 || e.status === 422 || e.status === 403)) notFound();
     throw e;
   }
+  const [charges, providers] = await Promise.all([
+    api<Charge[]>(`/charges?installment_id=${encodeURIComponent(i.id)}`),
+    api<PaymentProviderInfo[]>("/payment-providers"),
+  ]);
   const st = installmentStatus(i);
   const open = i.status === "aberta";
   const q = i.quote;
@@ -183,6 +188,17 @@ export default async function ParcelaPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {(open || charges.length > 0) && (
+        <ChargePanel
+          installmentId={i.id}
+          open={open}
+          charges={charges}
+          providers={providers}
+          canManage={can(me, "finance:manage")}
+          canResolve={can(me, "finance:reverse")}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <div>
@@ -207,7 +223,7 @@ export default async function ParcelaPage({ params }: { params: Promise<{ id: st
                         ` · parcela ${brl(p.principal)} + multa ${brl(p.late_fee)} + juros ${brl(p.late_interest)}`}
                     </span>
                     <span className="text-muted-foreground text-xs">
-                      {p.created_by_name ?? "—"} · {dateTime(p.created_at)}
+                      {p.created_by_name ?? "Sistema (PSP)"} · {dateTime(p.created_at)}
                     </span>
                   </div>
                   {p.notes && <p className="text-muted-foreground text-xs">{p.notes}</p>}

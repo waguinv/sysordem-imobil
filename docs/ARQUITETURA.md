@@ -86,6 +86,18 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - **Relatórios** (`/reports`): fluxo de caixa mensal (realizado e previsto; `finance:view`), inadimplência por contrato com faixas 1-30/31-60/61-90/90+ (`finance:view`) e vendas por empreendimento no período, com distratos (`contracts:view`). Web: Relatórios com exportação **CSV** (`;`, vírgula decimal, BOM — abre direto no Excel).
 - Web: renegociação, distrato e histórico na tela do contrato.
 
+## Implementado na Fase 4a — cobranças Pix/boleto e webhooks (PSP sandbox)
+- A Fase 4 foi dividida: **4a** adaptador + cobranças + webhooks (esta); **4b** conciliação (importar extrato OFX/CSV e casar lançamentos); **4c** PSP real, quando o cliente escolher (decisão 6).
+- Tabelas (RLS + FKs compostas; migration `0010`): `charges` (cobrança emitida, uma **pendente** por parcela — índice único parcial) e `webhook_events` (append-only, exceto as colunas de resultado: `GRANT UPDATE (charge_id, processed_at, result, detail)`).
+- **Adaptador** (`app/services/psp/`): interface `PaymentProvider` (`create_charge`, `cancel_charge`, `verify_webhook`, `parse_webhook`) com tipos normalizados (`charge.paid`, `charge.expired`, `charge.cancelled`). Hoje há só o **sandbox**: Pix copia-e-cola e linha digitável propositalmente não pagáveis (marcados SANDBOX / banco 999). Trocar por um PSP real = escrever outro adaptador.
+- **Emissão** (`finance:manage`): parcela em aberto, vencimento padrão = o da parcela (ou hoje, se já venceu), até 365 dias; valor = quanto a parcela custa na data de vencimento da cobrança (com multa/mora se já atrasada).
+- **Liquidação só por webhook autenticado** (`POST /api/v1/webhooks/payments/{provedor}/{empresa}`): o pagamento vira um recebimento normal (`register_payment`, com encargos, comissão e repasse), autor "sistema". Redirect de navegador não confirma nada. Segurança em [SEGURANCA.md](SEGURANCA.md).
+- **Dinheiro nunca some**: pagamento confirmado que não pode ser aplicado (parcela já quitada/renegociada/cancelada, valor acima do devido, cobrança cancelada mas paga) deixa a cobrança **divergente**, listada em Cobranças; o financeiro devolve ou lança manualmente e marca **resolvida** (`finance:reverse`, com motivo).
+- Recebimento manual, renegociação e distrato **cancelam** a cobrança pendente da parcela. Ordem de travas: cobrança → parcela em todos os caminhos (sem deadlock com webhooks).
+- **Simulador** (`POST /charges/{id}/sandbox/simulate`, `finance:manage`): gera um webhook assinado de pagamento ou expiração e o processa pelo mesmo caminho do webhook externo.
+- Rotas: `/payment-providers`, `/charges` (+ `/summary`, `/{id}`, `/{id}/cancel`, `/{id}/resolve`, `/{id}/sandbox/simulate`), `/installments/{id}/charges`.
+- Web: painel "Cobrança Pix / boleto" na tela da parcela (emitir, copiar código, simular, cancelar), Financeiro → Cobranças Pix/boleto (resumo, filtros, divergências) e tela da cobrança com as notificações recebidas.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

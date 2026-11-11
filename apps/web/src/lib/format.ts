@@ -210,3 +210,29 @@ export const COMMISSION_BASIS: Record<string, { label: string; hint: string }> =
   },
   assinatura: { label: "Na assinatura", hint: "sobre o valor total do contrato, de uma vez" },
 };
+
+// ── Fase 4a: cobranças ──
+
+export const CHARGE_STATUS: Record<string, { label: string; badge: BadgeVariant }> = {
+  pendente: { label: "Aguardando pagamento", badge: "warning" },
+  paga: { label: "Paga", badge: "default" },
+  cancelada: { label: "Cancelada", badge: "muted" },
+  expirada: { label: "Expirada", badge: "muted" },
+  divergente: { label: "Divergente", badge: "outline" },
+  resolvida: { label: "Divergência resolvida", badge: "muted" },
+};
+
+export const CHARGE_METHOD: Record<string, string> = { pix: "Pix", boleto: "Boleto" };
+
+export const WEBHOOK_RESULT: Record<string, string> = {
+  recebido: "Recebido",
+  processado: "Processado",
+  ignorado: "Ignorado",
+  divergente: "Divergente",
+};
+
+export const WEBHOOK_EVENT: Record<string, string> = {
+  "charge.paid": "Pagamento confirmado",
+  "charge.expired": "Cobrança expirada",
+  "charge.cancelled": "Cobrança cancelada no PSP",
+};
