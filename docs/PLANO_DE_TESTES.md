@@ -48,6 +48,14 @@
 - Escopo do corretor: precisa de vínculo ativo; vê/age só nos próprios leads, compradores, reservas e propostas (404 fora do escopo); atua sempre em nome próprio; sem contratos nem cadastro de corretores; corretor inativo perde o acesso.
 - Isolamento (empresa B), RLS nas 3 tabelas, `lead_activities` append-only, RBAC (leitura sem acesso, financeiro só consulta propostas, comercial faz tudo).
 
+## Implementado (Fase 3a) — `tests/test_fase3a.py` e `tests/test_finance.py`
+- Cronograma: entrada + parcelas na assinatura; soma das amortizações = saldo financiado (Price, SAC, sem juros, à vista); rascunho sem parcelas; contrato antigo ganha cronograma na 1ª leitura (idempotente); meses curtos.
+- Recebimento total e parcial; acima do devido, data futura e parcela quitada recusados.
+- Atraso: multa 2% + mora 1% a.m. pro rata (30 dias → 177,70 + 88,85 sobre 8.884,88); parcial em atraso cobra encargos só da parte paga; cotação para data passada sem encargos.
+- Estorno devolve o valor, só uma vez; recebido no mês exclui estornos; resumo (vencido, 30 dias, em aberto); filtros da lista.
+- `payments` e `payment_reversals` append-only (UPDATE/DELETE negados pelo banco); dois recebimentos simultâneos da mesma parcela: só um passa.
+- Isolamento (empresa B), RLS nas 3 tabelas, RBAC (leitura, comercial e corretor sem acesso; financeiro recebe e estorna).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

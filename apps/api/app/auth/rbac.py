@@ -39,6 +39,9 @@ class Perm(StrEnum):
     LEADS_MANAGE = "leads:manage"
     PROPOSALS_VIEW = "proposals:view"
     PROPOSALS_MANAGE = "proposals:manage"
+    FINANCE_VIEW = "finance:view"  # parcelas, contas a receber, recebimentos
+    FINANCE_MANAGE = "finance:manage"  # registrar recebimentos
+    FINANCE_REVERSE = "finance:reverse"  # estornar recebimentos
 
 
 _ALL = frozenset(Perm)
@@ -58,6 +61,9 @@ MATRIX: dict[Role, frozenset[Perm]] = {
         Perm.RESERVATIONS_VIEW,
         Perm.CONTRACTS_VIEW,
         Perm.PROPOSALS_VIEW,
+        Perm.FINANCE_VIEW,
+        Perm.FINANCE_MANAGE,
+        Perm.FINANCE_REVERSE,
     },
     Role.COMERCIAL: _BASE
     | {

@@ -270,7 +270,7 @@ def test_expired_proposal_cannot_be_accepted(client, env, owner_engine):
     h = env["h"]
     p = _proposal(client, h, env["lots"][0]["id"], env["customer"]["id"]).json()
     with owner_engine.begin() as c:
-        c.execute(text("UPDATE proposals SET valid_until = current_date - 1 WHERE id = :i"), {"i": p["id"]})
+        c.execute(text("UPDATE proposals SET valid_until = current_date - 5 WHERE id = :i"), {"i": p["id"]})
     r = client.post(f"{API}/proposals/{p['id']}/accept", headers=h, json={})
     assert r.status_code == 409
     assert client.get(f"{API}/proposals/{p['id']}", headers=h).json()["status"] == "expirada"

@@ -224,3 +224,68 @@ export type Proposal = {
   decided_at: string | null;
   decision_reason: string | null;
 };
+
+export type Installment = {
+  id: string;
+  contract_id: string;
+  contract_number: string;
+  number: number;
+  due_date: string;
+  principal: string;
+  interest: string;
+  amount: string;
+  paid_principal: string;
+  remaining: string;
+  status: "aberta" | "paga" | "cancelada";
+  overdue: boolean;
+  days_late: number;
+  paid_at: string | null;
+  customer_id: string;
+  customer_name: string;
+  lot_id: string;
+  lot_number: string;
+  block_code: string;
+  development_id: string;
+  development_name: string;
+};
+
+export type Quote = {
+  on: string;
+  remaining: string;
+  late_fee: string;
+  late_interest: string;
+  days_late: number;
+  total: string;
+  late_fee_pct: string;
+  late_interest_monthly_pct: string;
+};
+
+export type Payment = {
+  id: string;
+  received_on: string;
+  amount: string;
+  principal: string;
+  late_fee: string;
+  late_interest: string;
+  days_late: number;
+  method: string;
+  notes: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  reversed: boolean;
+  reversal_reason: string | null;
+  reversed_at: string | null;
+};
+
+export type InstallmentDetail = Installment & { quote: Quote; payments: Payment[] };
+
+export type ReceivablesSummary = {
+  open_total: string;
+  open_count: number;
+  overdue_total: string;
+  overdue_count: number;
+  due_30_total: string;
+  due_30_count: number;
+  received_month: string;
+  received_month_late_charges: string;
+};

@@ -388,3 +388,60 @@ class Proposal(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     decided_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     decision_reason: Mapped[str | None] = mapped_column(Text)
+
+
+# ───────────────────────── Fase 3a: parcelas, recebimentos e estornos ─────────────────────────
+
+
+class Installment(Base):
+    """Parcela do cronograma do contrato (nº 0 = entrada). Gerada na assinatura."""
+
+    __tablename__ = "installments"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    contract_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    principal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    interest: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    paid_principal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=Decimal("0"))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="aberta")
+    paid_at: Mapped[date | None] = mapped_column(Date)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Payment(Base):
+    """Recebimento (append-only). Correção só por estorno (PaymentReversal)."""
+
+    __tablename__ = "payments"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    installment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    received_on: Mapped[date] = mapped_column(Date, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    principal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    late_fee: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    late_interest: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    days_late: Mapped[int] = mapped_column(Integer, nullable=False)
+    method: Mapped[str] = mapped_column(String(20), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class PaymentReversal(Base):
+    """Estorno de um recebimento (append-only; no máximo um por recebimento)."""
+
+    __tablename__ = "payment_reversals"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    payment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()

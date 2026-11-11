@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     proposal_default_days: int = 7
     proposal_max_days: int = 90
 
+    # Fuso das datas de negócio (vencimentos, validade, atraso)
+    business_timezone: str = "America/Sao_Paulo"
+
     login_max_failures: int = 5
     login_window_seconds: int = 900
 
