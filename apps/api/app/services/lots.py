@@ -23,12 +23,12 @@ class LotStatus(StrEnum):
     BLOQUEADO = "bloqueado"
 
 
-# Transições de status. Saída de "vendido" só por distrato (Fase 3).
+# Transições de status. Saída de "vendido" só por distrato (Fase 3c) — nunca manual.
 TRANSITIONS: dict[LotStatus, frozenset[LotStatus]] = {
     LotStatus.DISPONIVEL: frozenset({LotStatus.RESERVADO, LotStatus.VENDIDO, LotStatus.BLOQUEADO}),
     LotStatus.RESERVADO: frozenset({LotStatus.DISPONIVEL, LotStatus.VENDIDO}),
     LotStatus.BLOQUEADO: frozenset({LotStatus.DISPONIVEL}),
-    LotStatus.VENDIDO: frozenset(),
+    LotStatus.VENDIDO: frozenset({LotStatus.DISPONIVEL}),
 }
 
 # Desde a Fase 2a, "reservado" só nasce de uma reserva (com comprador e validade) e um lote com
@@ -36,7 +36,7 @@ TRANSITIONS: dict[LotStatus, frozenset[LotStatus]] = {
 
 
 def manual_transitions(current: str, held: bool) -> list[str]:
-    if held:
+    if held or current == LotStatus.VENDIDO:  # vendido só sai por distrato
         return []
     allowed = TRANSITIONS.get(LotStatus(current), frozenset()) - {LotStatus.RESERVADO}
     return sorted(s.value for s in allowed)

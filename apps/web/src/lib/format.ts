@@ -77,6 +77,7 @@ export const CONTRACT_STATUS: Record<
   rascunho: { label: "Rascunho", badge: "warning" },
   assinado: { label: "Assinado", badge: "default" },
   cancelado: { label: "Cancelado", badge: "muted" },
+  distratado: { label: "Distratado", badge: "muted" },
 };
 
 export const ADJUSTMENT_INDEX: Record<string, string> = {
@@ -163,6 +164,7 @@ export function installmentStatus(i: { status: string; overdue: boolean; paid_pr
 } {
   if (i.status === "paga") return { label: "Paga", badge: "default" };
   if (i.status === "cancelada") return { label: "Cancelada", badge: "muted" };
+  if (i.status === "renegociada") return { label: "Renegociada", badge: "muted" };
   const partial = Number(i.paid_principal) > 0;
   if (i.overdue) return { label: partial ? "Vencida (parcial)" : "Vencida", badge: "danger" };
   return { label: partial ? "Parcialmente paga" : "A vencer", badge: partial ? "warning" : "outline" };
@@ -182,6 +184,7 @@ export const PAYABLE_CATEGORY: Record<string, string> = {
   imposto: "Imposto / taxa",
   marketing: "Marketing",
   outro: "Outro",
+  devolucao: "Devolução ao comprador",
 };
 
 export function payableStatus(p: { status: string; overdue: boolean }): {

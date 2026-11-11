@@ -48,7 +48,7 @@ export function InstallmentsTable({
                 </td>
                 <td className="px-2 py-2.5 text-right tabular-nums">{brl(i.amount)}</td>
                 <td className="px-2 py-2.5 text-right tabular-nums">
-                  {i.status === "paga" ? "—" : brl(i.remaining)}
+                  {i.status === "aberta" ? brl(i.remaining) : "—"}
                 </td>
                 <td className="px-2 py-2.5">
                   <Badge variant={st.badge}>{st.label}</Badge>

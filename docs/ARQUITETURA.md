@@ -79,6 +79,13 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Permissões: `finance:view|manage|reverse` (owner, admin, financeiro); regras de comissão exigem `settings:manage`; % do proprietário exige `owners:manage`.
 - Web: Comissões e repasses (saldo a acertar, gerar conta, lançamentos), Financeiro → Contas a pagar (resumo, filtros, nova conta, tela da conta), Configurações → Regras de comissão, e % de comissão em Corretores.
 
+## Implementado na Fase 3c — renegociação, distrato e relatórios
+- Tabelas (RLS + FKs compostas; migration `0009`): `renegotiations` e `rescissions` (append-only). Novos status: parcela `renegociada`, contrato `distratado`; categoria de conta a pagar `devolucao` (com `customer_id`). O índice "um contrato vivo por lote" passou a ignorar distratados, e `vendido → disponivel` agora existe, mas **só por distrato** (nunca manual).
+- **Renegociação** (`finance:manage`): troca todo o saldo em aberto (inclusive parciais) por um novo cronograma. Opcional: incorporar multa/mora do dia e dar desconto em R$. Novas condições dentro da política (parcelas/juros máx., Price/SAC). Parcelas antigas ficam `renegociada` com o que já foi pago; estorno de recebimento delas é bloqueado (exige ajuste manual).
+- **Distrato** (`contracts:sign` — owner/admin): retenção de % do valor do contrato (padrão 10%, referência da Lei 13.786/2018 para loteamentos), limitada ao que foi pago (parcelas, sem encargos, líquido de estornos); o restante vira conta a pagar ao comprador. Parcelas em aberto → `cancelada`, contrato → `distratado`, lote → `disponivel` (pode ser vendido de novo). Comissões/repasses já lançados não são revertidos (decisão pendente).
+- **Relatórios** (`/reports`): fluxo de caixa mensal (realizado e previsto; `finance:view`), inadimplência por contrato com faixas 1-30/31-60/61-90/90+ (`finance:view`) e vendas por empreendimento no período, com distratos (`contracts:view`). Web: Relatórios com exportação **CSV** (`;`, vírgula decimal, BOM — abre direto no Excel).
+- Web: renegociação, distrato e histórico na tela do contrato.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

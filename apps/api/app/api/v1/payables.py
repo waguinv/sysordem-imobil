@@ -31,7 +31,9 @@ router = APIRouter(tags=["contas a pagar"])
 Money = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
 Pct = Annotated[Decimal, Field(ge=0, le=100, max_digits=5, decimal_places=2)]
 Kind = Literal["comissao", "proprietario"]
-Category = Literal["comissao", "proprietario", "fornecedor", "obra", "imposto", "marketing", "outro"]
+Category = Literal[
+    "comissao", "proprietario", "fornecedor", "obra", "imposto", "marketing", "outro", "devolucao"
+]
 Method = Literal["pix", "boleto", "transferencia", "dinheiro", "cartao", "cheque", "outro"]
 
 

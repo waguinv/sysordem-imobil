@@ -3,7 +3,7 @@
 2. Tipo e localização dos empreendimentos; requisitos municipais aplicáveis.
 3. Forma de pagamento ao proprietário da área e base da comissão. *Fase 3b adotou (hipótese): repasse de % configurável por empreendimento sobre cada parcela recebida.*
 4. Base e momento de cálculo da comissão dos corretores. *Fase 3b adotou (configurável por empresa): padrão 5% sobre cada valor de parcela recebido; alternativa: sobre o total na assinatura; % próprio por corretor.*
-5. Regras para juros, multa, correção, antecipação, renegociação e distrato. *Fase 3a adotou (a validar com jurídico/contábil): multa única + mora pro rata die (mês de 30 dias) sobre a parte paga em atraso; correção monetária ainda não aplicada; antecipação, renegociação e distrato ficam para a 3c.*
+5. Regras para juros, multa, correção, antecipação, renegociação e distrato. *Fase 3a adotou (a validar com jurídico/contábil): multa única + mora pro rata die (mês de 30 dias) sobre a parte paga em atraso; correção monetária ainda não aplicada; Fase 3c adotou: renegociação de todo o saldo em aberto (encargos opcionais, desconto em R$) e distrato com retenção padrão de 10% do contrato limitada ao pago (Lei 13.786/2018 como referência) — validar com jurídico. Antecipação com desconto ainda não implementada.*
 6. Banco/PSP prioritário e meios de cobrança do MVP.
 7. Formato da planta (DWG, KML, GeoJSON, PDF, imagem etc.). *Hoje: mapa esquemático por quadra; `lots.geometry` (GeoJSON) reservado.*
 8. Quantidade de empresas, empreendimentos, lotes, usuários e contratos para migração.
@@ -24,3 +24,6 @@
 23. O perfil comercial deve consultar a situação de pagamento dos clientes? (hoje só owner, admin e financeiro veem o financeiro)
 24. Retenção de impostos (IR/ISS/INSS) sobre comissões e repasses e emissão de recibos/RPA — hoje a conta a pagar é pelo valor bruto.
 25. Corretor deve ver o próprio extrato de comissões no sistema? (hoje só o financeiro vê)
+26. No distrato, estornar comissões e repasses já lançados? E a retenção deve considerar fruição/IPTU/condomínio (art. 32-A da Lei 6.766)?
+27. Prazo padrão da devolução no distrato (hoje 30 dias, editável) e se pode ser parcelada.
+28. Relatórios exigidos pelo contador (decisão 9): os três atuais (fluxo, inadimplência, vendas) bastam? Precisa de DRE/regime de competência ou integração com sistema contábil?

@@ -223,6 +223,9 @@ def reverse_payment(
     if p is None:
         raise ReceivableNotFoundError("Recebimento não encontrado")
     inst = _lock_installment(db, tenant_id, p.installment_id)
+    if inst.status not in ("aberta", "paga"):
+        # parcela renegociada/cancelada: o valor já foi considerado na renegociação ou no distrato
+        raise ReceivableError(f"Parcela {inst.status}: o estorno exige ajuste manual com o financeiro")
     if db.scalar(select(exists().where(PaymentReversal.payment_id == p.id))):
         raise ReceivableError("Recebimento já estornado")
     r = PaymentReversal(tenant_id=tenant_id, payment_id=p.id, reason=reason, created_by=actor)

@@ -1,6 +1,6 @@
 # PROMPT MESTRE — SysOrdem Imobil (codinome LoteaPro)
 
-> Fases 0, 1 e 2 concluídas (2a: compradores, corretores, reservas; 2b: contratos; 2c: leads, propostas, escopo do corretor). Fases 3a (parcelas, contas a receber, recebimentos, estornos) e 3b (comissões, repasses ao proprietário, contas a pagar) concluídas. Próximo: 3c (renegociação, distrato, relatórios) — ver README.md e docs/SEGURANCA.md. Identidade visual: docs/IDENTIDADE_VISUAL.md (padrão SysOrdem).
+> Fases 0, 1 e 2 concluídas (2a: compradores, corretores, reservas; 2b: contratos; 2c: leads, propostas, escopo do corretor). Fase 3 concluída: 3a (parcelas, contas a receber, recebimentos, estornos), 3b (comissões, repasses ao proprietário, contas a pagar) e 3c (renegociação, distrato, relatórios). Próximo: Fase 4 (pagamentos sandbox/PSP) — ver README.md e docs/SEGURANCA.md. Identidade visual: docs/IDENTIDADE_VISUAL.md (padrão SysOrdem).
 
 Atue como engenheiro de software sênior e arquiteto SaaS multi-tenant. Desenvolva o SysOrdem Imobil (codinome LoteaPro), uma plataforma responsiva para gestão de loteamentos de terrenos e chácaras. Antes de alterar código, leia README.md e todos os documentos em docs/. Trabalhe incrementalmente, implemente testes e não declare algo pronto sem executar e relatar os testes.
 
