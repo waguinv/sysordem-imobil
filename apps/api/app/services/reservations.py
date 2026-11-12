@@ -183,12 +183,3 @@ def cancel(
     res, lot = _lock_active(db, tenant_id, res_id)
     _close(db, res, lot, status="cancelada", to_lot=LotStatus.DISPONIVEL, actor=actor, reason=reason)
     return res
-
-
-def convert(
-    db: Session, *, tenant_id: uuid.UUID, res_id: uuid.UUID, actor: uuid.UUID, reason: str
-) -> Reservation:
-    """Converte em venda. Na Fase 2b passará a exigir/gerar o contrato."""
-    res, lot = _lock_active(db, tenant_id, res_id)
-    _close(db, res, lot, status="convertida", to_lot=LotStatus.VENDIDO, actor=actor, reason=reason)
-    return res

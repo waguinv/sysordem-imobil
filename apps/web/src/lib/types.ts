@@ -33,6 +33,7 @@ export type LotDetail = Lot & {
   development_name: string;
   allowed_transitions: string[];
   active_reservation_id: string | null;
+  contract_id: string | null;
 };
 
 export type DevelopmentMap = {
@@ -96,4 +97,58 @@ export type Reservation = {
   customer_name: string;
   broker_id: string | null;
   broker_name: string | null;
+};
+
+export type ContractTerms = {
+  version: number;
+  total_price: string;
+  down_payment: string;
+  installments_count: number;
+  installment_amount: string;
+  amortization: "price" | "sac";
+  interest_monthly_pct: string;
+  first_due_date: string | null;
+  adjustment_index: string;
+  late_fee_pct: string;
+  late_interest_monthly_pct: string;
+  notes: string | null;
+  reason: string | null;
+  created_at: string;
+};
+
+export type Contract = {
+  id: string;
+  number: string;
+  status: "rascunho" | "assinado" | "cancelado";
+  current_version: number;
+  created_at: string;
+  signed_at: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  lot_id: string;
+  lot_number: string;
+  block_code: string;
+  development_id: string;
+  development_name: string;
+  customer_id: string;
+  customer_name: string;
+  broker_name: string | null;
+  reservation_id: string | null;
+  terms: ContractTerms;
+};
+
+export type ContractDetail = Contract & { versions: ContractTerms[] };
+
+export type ContractPolicy = {
+  default_interest_monthly_pct: string;
+  max_interest_monthly_pct: string;
+  default_amortization: "price" | "sac";
+  allowed_amortizations: ("price" | "sac")[];
+  default_adjustment_index: string;
+  late_fee_pct: string;
+  late_interest_monthly_pct: string;
+  max_installments: number;
+  min_down_payment_pct: string;
+  allow_override_late_charges: boolean;
+  is_default: boolean;
 };

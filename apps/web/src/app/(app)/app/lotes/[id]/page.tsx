@@ -1,4 +1,4 @@
-import { ArrowLeft, History } from "lucide-react";
+import { ArrowLeft, FileSignature, History } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -60,6 +60,18 @@ export default async function LotePage({ params }: { params: Promise<{ id: strin
           </p>
         </div>
       </div>
+
+      {lot.contract_id && can(me, "contracts:view") && (
+        <Link
+          href={`/app/contratos/${lot.contract_id}`}
+          className="bg-brand/10 text-brand-institutional hover:bg-brand/15 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium"
+        >
+          <FileSignature className="size-4" />
+          {lot.status === "vendido"
+            ? "Ver contrato de venda"
+            : "Contrato em rascunho — abrir para assinar ou ajustar"}
+        </Link>
+      )}
 
       <ReservationPanel lot={lot} me={me} />
 

@@ -6,13 +6,14 @@ Regras:
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -230,3 +231,85 @@ class Reservation(Base):
     created_at: Mapped[datetime] = _created_at()
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     close_reason: Mapped[str | None] = mapped_column(Text)
+
+
+# ───────────────────────── Fase 2b: contratos ─────────────────────────
+
+
+class TenantCounter(Base):
+    """Sequências por empresa (ex.: número de contrato), incrementadas sob trava de linha."""
+
+    __tablename__ = "tenant_counters"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class SalesContract(Base):
+    __tablename__ = "sales_contracts"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    number: Mapped[str] = mapped_column(String(20), nullable=False)
+    lot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    broker_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    reservation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="rascunho")
+    current_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    signed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancel_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class ContractVersion(Base):
+    """Condições da contratação. Imutável (append-only): cada mudança gera nova versão."""
+
+    __tablename__ = "contract_versions"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    down_payment: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    installments_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    installment_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)  # SAC: 1ª parcela
+    amortization: Mapped[str] = mapped_column(String(10), nullable=False, default="price")
+    interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    first_due_date: Mapped[date | None] = mapped_column(Date)
+    adjustment_index: Mapped[str] = mapped_column(String(10), nullable=False)
+    late_fee_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    late_interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    reason: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ContractPolicy(Base):
+    """Política de contratos de cada empresa: padrões e limites que valem para novos contratos/versões."""
+
+    __tablename__ = "contract_policies"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), primary_key=True
+    )
+    default_interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    max_interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    default_amortization: Mapped[str] = mapped_column(String(10), nullable=False)
+    allowed_amortizations: Mapped[str] = mapped_column(String(40), nullable=False)  # "price,sac"
+    default_adjustment_index: Mapped[str] = mapped_column(String(10), nullable=False)
+    late_fee_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    late_interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    max_installments: Mapped[int] = mapped_column(Integer, nullable=False)
+    min_down_payment_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    allow_override_late_charges: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))

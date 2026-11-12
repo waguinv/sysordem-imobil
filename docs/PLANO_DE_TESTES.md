@@ -24,6 +24,22 @@
 - Isolamento: empresa B não vê/usa compradores, corretores, reservas nem lotes de A; mesmo CPF permitido em empresas diferentes; RLS nas 3 tabelas.
 - RBAC: leitura/corretor sem acesso; financeiro só consulta; comercial cadastra comprador e reserva, mas não cadastra corretor.
 
+## Implementado (Fase 2b) — `tests/test_fase2b.py` e `tests/test_finance.py`
+- Gerar contrato a partir da reserva (preço congelado, parcela calculada, reserva convertida, lote preso ao contrato).
+- Numeração sequencial por empresa; condições inválidas recusadas **sem efeitos colaterais** (reserva segue ativa, número não consumido).
+- Tabela Price (valor de referência 100.000 a 1% em 12× = 8.884,88), venda à vista, arredondamento meio-para-cima.
+- Versões: histórico preservado, versão esperada obrigatória; versões append-only no banco.
+- Assinar vende o lote e congela o contrato; assinado não cancela (distrato na Fase 3); cancelar rascunho libera o lote para nova reserva.
+- Reserva expirada não vira contrato; reserva não gera dois contratos — inclusive com duas transações simultâneas.
+- Isolamento entre empresas, RLS nas 3 tabelas e RBAC (comercial gera, só owner/admin assinam, financeiro consulta).
+
+## Implementado (política de contratos) — `tests/test_policy.py`
+- Padrão do sistema sem configuração; salvar política (auditoria com antes/depois).
+- Contrato usa os padrões da empresa (SAC, IPCA, juros) e calcula a 1ª parcela SAC; cliente pode escolher Price dentro da política.
+- Recusa: juros acima do máximo, parcelas acima do máximo, entrada abaixo do mínimo, multa alterada sem permissão, sistema não permitido.
+- Política inválida recusada; política é por empresa; só owner/admin alteram.
+- `tests/test_finance.py`: 1ª parcela SAC.
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

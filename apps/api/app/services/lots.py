@@ -35,8 +35,8 @@ TRANSITIONS: dict[LotStatus, frozenset[LotStatus]] = {
 # reserva ativa só sai de "reservado" cancelando, expirando ou convertendo a reserva.
 
 
-def manual_transitions(current: str, has_active_reservation: bool) -> list[str]:
-    if has_active_reservation:
+def manual_transitions(current: str, held: bool) -> list[str]:
+    if held:
         return []
     allowed = TRANSITIONS.get(LotStatus(current), frozenset()) - {LotStatus.RESERVADO}
     return sorted(s.value for s in allowed)
@@ -54,19 +54,23 @@ class InvalidTransitionError(Exception):
     pass
 
 
-def has_active_reservation(db: Session, tenant_id: uuid.UUID, lot_id: uuid.UUID) -> bool:
-    from app.models import Reservation  # import local: evita ciclo de import
+def is_held(db: Session, tenant_id: uuid.UUID, lot_id: uuid.UUID) -> bool:
+    """Lote preso a uma reserva ativa ou a um contrato em rascunho (não muda de status manualmente)."""
+    from app.models import Reservation, SalesContract  # import local: evita ciclo de import
 
-    return (
-        db.scalar(
-            select(Reservation.id).where(
-                Reservation.tenant_id == tenant_id,
-                Reservation.lot_id == lot_id,
-                Reservation.status == "ativa",
-            )
+    reservation = db.scalar(
+        select(Reservation.id).where(
+            Reservation.tenant_id == tenant_id, Reservation.lot_id == lot_id, Reservation.status == "ativa"
         )
-        is not None
     )
+    contract = db.scalar(
+        select(SalesContract.id).where(
+            SalesContract.tenant_id == tenant_id,
+            SalesContract.lot_id == lot_id,
+            SalesContract.status == "rascunho",
+        )
+    )
+    return reservation is not None or contract is not None
 
 
 def apply_status(
@@ -129,7 +133,7 @@ def change_status(
         raise LotNotFoundError
     if lot.version != expected_version:
         raise LotConflictError
-    if to_status.value not in manual_transitions(lot.status, has_active_reservation(db, tenant_id, lot.id)):
+    if to_status.value not in manual_transitions(lot.status, is_held(db, tenant_id, lot.id)):
         raise InvalidTransitionError(
             f"{lot.status} → {to_status} (reservas são feitas e encerradas pela tela de reservas)"
         )
