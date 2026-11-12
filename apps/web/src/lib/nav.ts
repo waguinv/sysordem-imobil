@@ -68,11 +68,12 @@ export const NAV: NavEntry[] = [
         alsoActive: ["/app/financeiro/parcelas"],
       },
       { title: "Contas a pagar", href: "/app/financeiro/pagar", permission: "finance:view" },
+      { title: "Cobranças Pix/boleto", href: "/app/financeiro/cobrancas", permission: "finance:view" },
       {
         title: "Conciliação",
         href: "/app/financeiro/conciliacao",
         permission: "tenant:view",
-        soon: "Fase 4",
+        soon: "Fase 4b",
       },
     ],
   },

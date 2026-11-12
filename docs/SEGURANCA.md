@@ -41,9 +41,19 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 ## Auditoria
 `audit_events` registra ator, data/hora, entidade, ação, motivo e dados antes/depois. É **append-only**: o papel da aplicação só tem `SELECT, INSERT` (UPDATE/DELETE negados pelo banco — testado). Login, troca de empresa e alterações de vínculo são auditados.
 
+## Webhooks de pagamento (Fase 4a)
+- Rota pública `POST /api/v1/webhooks/payments/{provedor}/{empresa}` — sem token de usuário; a autenticação é a **assinatura do provedor**, verificada **antes** de ler o conteúdo ou tocar no banco.
+- Sandbox: `X-Sandbox-Signature: t=<unix>,v1=<HMAC-SHA256(segredo, "<t>.<corpo>")>`, comparação em tempo constante, janela de `PAYMENTS_WEBHOOK_TOLERANCE_SECONDS` (padrão 300 s) contra replay, corpo máximo de 64 KB. Assinatura ausente/errada/antiga → 401; corpo malformado → 400.
+- A empresa vem da URL (cada empresa cadastra a própria URL no PSP). Depois da assinatura, o contexto RLS é definido para ela e a cobrança é procurada **só dentro dela**: um evento válido com a URL de outra empresa não encontra nada (testado).
+- **Deduplicação**: `webhook_events` com índice único (empresa, provedor, id do evento) — reenvio responde `duplicado` sem efeito. **Idempotência**: cobrança já paga ignora novos pagamentos. Entregas simultâneas: trava da cobrança (`FOR UPDATE`) + índice único (testado com duas transações em paralelo).
+- Resposta 2xx sempre que o evento foi aceito (inclusive ignorado/duplicado/divergente) para o PSP não reenviar; erro inesperado → 5xx e rollback, e o PSP reenvia.
+- Segredo: `PAYMENTS_SANDBOX_SECRET` (≥ 32 caracteres, fora do Git). Sem ele, o sandbox gera um segredo aleatório por processo (serve para o simulador; webhooks externos exigem o fixo). O sandbox fica **desligado em produção** (`PAYMENTS_SANDBOX_ENABLED=true` força).
+- **PSP real (4c)**: credenciais por empresa em cofre/variáveis de ambiente (nunca em texto puro no banco), segredo de webhook por empresa e, se o PSP oferecer, mTLS/lista de IPs. Hoje o segredo do sandbox é único da plataforma.
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.
 - Convite de usuário por e-mail (hoje a senha inicial é definida por quem cria o vínculo) e redefinição de senha.
+- Rate limit na rota pública de webhooks.
 - Onboarding de empresas (hoje via seed/SQL administrativo).
 - CSP com nonce no web, logs estruturados sem dados pessoais, monitoramento e alertas.

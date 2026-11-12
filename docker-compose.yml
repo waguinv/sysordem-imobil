@@ -38,6 +38,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET no .env}
       ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-60}
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      PAYMENTS_SANDBOX_SECRET: ${PAYMENTS_SANDBOX_SECRET:-}
     ports: ["${API_PORT:-8000}:8000"]
     depends_on:
       migrate:

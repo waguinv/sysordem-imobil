@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1 import (
     auth,
+    charges,
     commercial,
     contract_changes,
     contracts,
@@ -20,7 +21,7 @@ from app.api.v1 import (
 from app.core.config import get_settings
 from app.core.db import get_engine
 
-VERSION = "0.8.0"
+VERSION = "0.9.0"
 log = logging.getLogger("imobil.api")
 
 settings = get_settings()
@@ -69,7 +70,7 @@ v1 = APIRouter(prefix="/api/v1")
 
 @v1.get("", tags=["meta"])
 def api_root() -> dict[str, str]:
-    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "3c"}
+    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "4a"}
 
 
 v1.include_router(auth.router)
@@ -82,4 +83,5 @@ v1.include_router(finance.router)
 v1.include_router(payables.router)
 v1.include_router(contract_changes.router)
 v1.include_router(reports.router)
+v1.include_router(charges.router)
 app.include_router(v1)

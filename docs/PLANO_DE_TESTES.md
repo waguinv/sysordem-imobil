@@ -69,6 +69,14 @@
 - Relatórios: fluxo de caixa (recebido, pago, saldo, previsto), inadimplência (faixas, contatos) e vendas (rascunho não conta, distratos contam).
 - `renegotiations`/`rescissions` append-only e sob RLS; isolamento (empresa B) e RBAC (financeiro renegocia; só owner/admin distratam; comercial vê só vendas).
 
+## Implementado (Fase 4a) — `tests/test_fase4a.py`
+- Emissão Pix/boleto (valor, vencimento, uma pendente por parcela, limites, parcela quitada, parcela atrasada com encargos).
+- Webhook: pagamento simulado e externo baixam a parcela (encargos se pago após o vencimento); reenvio do mesmo evento = duplicado; novo evento para cobrança paga = ignorado; duas entregas simultâneas lançam uma vez.
+- Autenticação: sem assinatura, corpo alterado, carimbo antigo, assinatura forjada/malformada → 401; provedor/empresa desconhecidos → 404; malformado assinado → 400; nada é lançado.
+- Isolamento: webhook com URL da empresa B não acha cobrança da A; B não lista/abre/cancela/simula cobranças da A.
+- Divergência (cobrança cancelada por recebimento manual e paga mesmo assim; valor acima do devido) e resolução; expiração; cancelamento; renegociação e distrato cancelam a pendente.
+- RBAC (comercial/leitura/corretor sem acesso); `webhook_events` append-only e `charges` sem DELETE; RLS sem contexto; sandbox desligado em produção.
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

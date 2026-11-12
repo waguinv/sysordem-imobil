@@ -155,7 +155,7 @@ def register_payment(
     received_on: date,
     method: str,
     notes: str | None,
-    actor: uuid.UUID,
+    actor: uuid.UUID | None,  # None = sistema (webhook de PSP)
 ) -> Payment:
     inst = _lock_installment(db, tenant_id, installment_id)
     if inst.status != "aberta":

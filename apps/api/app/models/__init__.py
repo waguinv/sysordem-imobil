@@ -574,3 +574,58 @@ class Rescission(Base):
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[datetime] = _created_at()
+
+
+# ───────────────────────── Fase 4a: cobranças (PSP) e webhooks ─────────────────────────
+
+
+class Charge(Base):
+    """Cobrança Pix/boleto emitida num PSP para uma parcela. Não é lançamento: o dinheiro só entra
+    quando o PSP confirma por webhook (vira um Payment). No máximo uma pendente por parcela."""
+
+    __tablename__ = "charges"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    installment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    provider: Mapped[str] = mapped_column(String(30), nullable=False)
+    method: Mapped[str] = mapped_column(String(20), nullable=False)  # pix | boleto
+    external_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    # pendente | paga | cancelada | expirada | divergente | resolvida
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")
+    pix_code: Mapped[str | None] = mapped_column(Text)
+    boleto_line: Mapped[str | None] = mapped_column(String(80))
+    paid_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    paid_on: Mapped[date | None] = mapped_column(Date)
+    payment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    status_reason: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class WebhookEvent(Base):
+    """Notificação autenticada de um PSP. Dedup por (empresa, provedor, event_id); payload imutável."""
+
+    __tablename__ = "webhook_events"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    provider: Mapped[str] = mapped_column(String(30), nullable=False)
+    event_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    external_id: Mapped[str | None] = mapped_column(String(100))
+    charge_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[str] = mapped_column(String(20), nullable=False, default="recebido")
+    detail: Mapped[str | None] = mapped_column(Text)
