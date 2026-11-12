@@ -81,8 +81,7 @@ export const NAV: NavEntry[] = [
     title: "Relatórios",
     href: "/app/relatorios",
     icon: FileBarChart,
-    permission: "tenant:view",
-    soon: "Fase 3c",
+    permission: "contracts:view",
   },
   { title: "Site público", href: "/app/site", icon: Globe, permission: "tenant:view", soon: "Fase 5" },
   {

@@ -8,6 +8,7 @@ import {
   parseDecimalBR,
   timeLeft,
 } from "@/lib/format";
+import { decimalBR, toCSV } from "@/lib/csv";
 import { findRoute, isGroup, NAV, navFor } from "@/lib/nav";
 import { initials } from "@/lib/utils";
 
@@ -150,5 +151,31 @@ describe("contas a pagar", () => {
     expect(payableStatus({ status: "aberta", overdue: false }).label).toBe("A pagar");
     expect(payableStatus({ status: "paga", overdue: false }).label).toBe("Paga");
     expect(payableStatus({ status: "cancelada", overdue: false }).label).toBe("Cancelada");
+  });
+});
+
+describe("csv", () => {
+  it("usa ponto e vírgula, vírgula decimal, BOM e escapa campos", () => {
+    const csv = toCSV(
+      ["Nome", "Valor"],
+      [
+        ["Ana; Bia", decimalBR("1234.50")],
+        ['Diz "oi"', null],
+      ],
+    );
+    expect(csv.startsWith("﻿")).toBe(true);
+    expect(csv).toBe('﻿Nome;Valor\r\n"Ana; Bia";1234,50\r\n"Diz ""oi""";\r\n');
+  });
+  it("relatórios aparecem para quem vê contratos", () => {
+    expect(flat(["contracts:view"])).toContain("/app/relatorios");
+    expect(flat(["tenant:view"])).not.toContain("/app/relatorios");
+  });
+});
+
+describe("parcela renegociada", () => {
+  it("tem rótulo próprio", () => {
+    expect(installmentStatus({ status: "renegociada", overdue: false, paid_principal: "0" }).label).toBe(
+      "Renegociada",
+    );
   });
 });

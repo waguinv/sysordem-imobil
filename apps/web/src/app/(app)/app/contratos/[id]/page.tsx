@@ -2,6 +2,7 @@ import { ArrowLeft, History, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ContractChanges } from "@/components/contracts/contract-changes";
 import { TermsFields } from "@/components/contracts/terms-fields";
 import { InstallmentsTable } from "@/components/finance/installments-table";
 import { ActionForm, Field } from "@/components/ui/action-form";
@@ -70,10 +71,11 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
   const manage = can(me, "contracts:manage") && draft;
   const sign = can(me, "contracts:sign") && draft;
   const installments =
-    c.status === "assinado" && can(me, "finance:view")
+    (c.status === "assinado" || c.status === "distratado") && can(me, "finance:view")
       ? await api<Installment[]>(`/contracts/${c.id}/installments`)
       : [];
   const paid = installments.filter((i) => i.status === "paga").length;
+  const current = installments.filter((i) => i.status === "aberta" || i.status === "paga").length;
   const overdue = installments.filter((i) => i.overdue).length;
 
   return (
@@ -105,6 +107,7 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
             <CardDescription>
               {c.status === "assinado" && c.signed_at && `Assinado em ${dateTime(c.signed_at)}. `}
               {c.status === "cancelado" && `Cancelado: ${c.cancel_reason ?? ""}. `}
+              {c.status === "distratado" && "Contrato distratado: o lote voltou a ficar disponível. "}
               {draft && "Rascunho: o lote segue reservado até a assinatura."}
             </CardDescription>
           </div>
@@ -194,7 +197,7 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
                 <Wallet className="text-brand size-4" /> Parcelas
               </CardTitle>
               <CardDescription>
-                {paid} de {installments.length} quitada(s)
+                {paid} de {current} quitada(s)
                 {overdue > 0 && ` · ${overdue} vencida(s)`}. Abra uma parcela para registrar o recebimento.
               </CardDescription>
             </div>
@@ -204,6 +207,8 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
           </CardContent>
         </Card>
       )}
+
+      <ContractChanges c={c} me={me} policy={policy} />
 
       <Card>
         <CardHeader>

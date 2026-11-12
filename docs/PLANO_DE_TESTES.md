@@ -63,6 +63,12 @@
 - Acerto gera conta a pagar e é idempotente; cancelar devolve os créditos; ciclo da conta manual (pagar, data futura recusada, estornar, cancelar), resumo e filtros.
 - `participations` e `payable_events` protegidos no banco (UPDATE/DELETE negados; só `payable_id` editável); isolamento (empresa B), RLS nas 4 tabelas e RBAC.
 
+## Implementado (Fase 3c) — `tests/test_fase3c.py`
+- Renegociação: saldo em aberto (com parcial) + encargos − desconto → novo cronograma que soma exatamente o novo saldo; parcelas antigas "renegociada"; sem encargos; limites da política; contrato rascunho/sem saldo; 1º vencimento no passado; estorno de recebimento de parcela renegociada bloqueado.
+- Distrato: retenção de 10% do contrato limitada ao pago, devolução vira conta a pagar ao comprador, parcelas canceladas, contrato distratado, lote disponível e revendável; retenção personalizada; vendido sem saída manual; distrato é final.
+- Relatórios: fluxo de caixa (recebido, pago, saldo, previsto), inadimplência (faixas, contatos) e vendas (rascunho não conta, distratos contam).
+- `renegotiations`/`rescissions` append-only e sob RLS; isolamento (empresa B) e RBAC (financeiro renegocia; só owner/admin distratam; comercial vê só vendas).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

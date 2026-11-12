@@ -131,7 +131,7 @@ export type ContractTerms = {
 export type Contract = {
   id: string;
   number: string;
-  status: "rascunho" | "assinado" | "cancelado";
+  status: "rascunho" | "assinado" | "cancelado" | "distratado";
   current_version: number;
   created_at: string;
   signed_at: string | null;
@@ -237,7 +237,7 @@ export type Installment = {
   amount: string;
   paid_principal: string;
   remaining: string;
-  status: "aberta" | "paga" | "cancelada";
+  status: "aberta" | "paga" | "cancelada" | "renegociada";
   overdue: boolean;
   days_late: number;
   paid_at: string | null;
@@ -370,4 +370,92 @@ export type PayablesSummary = {
   due_30_total: string;
   paid_month: string;
   pending_participations: string;
+};
+
+export type OpenBalance = { count: number; overdue_count: number; balance: string; late_charges: string };
+
+export type Renegotiation = {
+  id: string;
+  old_balance: string;
+  late_charges: string;
+  discount: string;
+  new_balance: string;
+  replaced_count: number;
+  installments_count: number;
+  interest_monthly_pct: string;
+  amortization: "price" | "sac";
+  first_due_date: string;
+  reason: string;
+  author_name: string | null;
+  created_at: string;
+};
+
+export type RescissionQuote = {
+  contract_total: string;
+  paid_total: string;
+  retention_pct: string;
+  retention_amount: string;
+  refund_amount: string;
+  open_count: number;
+};
+
+export type Rescission = {
+  paid_total: string;
+  retention_pct: string;
+  retention_amount: string;
+  refund_amount: string;
+  payable_id: string | null;
+  reason: string;
+  author_name: string | null;
+  created_at: string;
+};
+
+export type CashFlow = {
+  months: {
+    month: string;
+    received: string;
+    paid: string;
+    net: string;
+    expected_in: string;
+    expected_out: string;
+  }[];
+  overdue_in_before: string;
+  overdue_out_before: string;
+};
+
+export type Delinquency = {
+  on: string;
+  total: string;
+  contracts: number;
+  buckets: Record<string, string>;
+  items: {
+    contract_id: string;
+    contract_number: string;
+    customer_id: string;
+    customer_name: string;
+    customer_phone: string | null;
+    development_name: string;
+    block_code: string;
+    lot_number: string;
+    overdue_count: number;
+    overdue_amount: string;
+    oldest_due: string;
+    days_late: number;
+    bucket: string;
+  }[];
+};
+
+export type SalesReport = {
+  date_from: string;
+  date_to: string;
+  contracts: number;
+  total_value: string;
+  rows: {
+    development_id: string;
+    development_name: string;
+    contracts: number;
+    total_value: string;
+    down_payments: string;
+    rescissions: number;
+  }[];
 };

@@ -419,6 +419,7 @@ class Installment(Base):
     paid_principal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=Decimal("0"))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="aberta")
     paid_at: Mapped[date | None] = mapped_column(Date)
+    renegotiation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # Fase 3c
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -485,6 +486,7 @@ class Payable(Base):
     payee_name: Mapped[str] = mapped_column(String(160), nullable=False)
     broker_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     land_owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # devolução por distrato
     development_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
@@ -528,4 +530,47 @@ class Participation(Base):
     pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     payable_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+# ───────────────────────── Fase 3c: renegociação e distrato ─────────────────────────
+
+
+class Renegotiation(Base):
+    """Troca do saldo em aberto por um novo cronograma (append-only)."""
+
+    __tablename__ = "renegotiations"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    old_balance: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    late_charges: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    discount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    new_balance: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    replaced_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    installments_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    interest_monthly_pct: Mapped[Decimal] = mapped_column(Numeric(7, 4), nullable=False)
+    amortization: Mapped[str] = mapped_column(String(10), nullable=False)
+    first_due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Rescission(Base):
+    """Distrato de contrato assinado (append-only; um por contrato)."""
+
+    __tablename__ = "rescissions"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    paid_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    retention_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    retention_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    refund_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    payable_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[datetime] = _created_at()
