@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -45,7 +45,14 @@ class AuthContext:
         return self.membership.role
 
 
+# Com a assinatura suspensa/cancelada, alterações ficam bloqueadas — exceto as da própria assinatura
+# (para regularizar) e a troca de empresa.
+_BILLING_PATHS = ("/api/v1/billing", "/api/v1/auth/")
+_READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
 def get_auth(
+    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Session = DB_DEPENDS,
 ) -> AuthContext:
@@ -71,6 +78,15 @@ def get_auth(
     tenant = db.get(Tenant, tenant_id)
     if membership is None or tenant is None or not tenant.is_active or not membership.user.is_active:
         raise _UNAUTHORIZED
+    if request.method not in _READ_METHODS and not request.url.path.startswith(_BILLING_PATHS):
+        from app.services.subscription import status as subscription_status  # import local: evita ciclo
+
+        if not subscription_status(db, tenant_id).can_write:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="Assinatura suspensa: o sistema está só para consulta. Regularize em Configurações → "
+                "Assinatura.",
+            )
     return AuthContext(user=membership.user, tenant=tenant, membership=membership, db=db)
 
 

@@ -1,10 +1,12 @@
 import { ArrowRight, Banknote, CalendarClock, FileSignature, Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { OnboardingCard } from "@/components/billing/onboarding-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/primitives";
 import { StatusLegend } from "@/components/lots/lot-map";
 import { brl } from "@/lib/format";
 import { api, getMe } from "@/lib/session";
+import type { Onboarding } from "@/lib/billing";
 import type { Development } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Tela inicial" };
@@ -24,7 +26,11 @@ const MODULES = [
 ];
 
 export default async function DashboardPage() {
-  const [me, devs] = await Promise.all([getMe(), api<Development[]>("/developments")]);
+  const [me, devs, onboarding] = await Promise.all([
+    getMe(),
+    api<Development[]>("/developments"),
+    api<Onboarding>("/onboarding"),
+  ]);
   const totals = { disponivel: 0, reservado: 0, vendido: 0, bloqueado: 0 };
   for (const d of devs)
     for (const k of Object.keys(totals) as (keyof typeof totals)[]) totals[k] += d.counts[k];
@@ -38,6 +44,7 @@ export default async function DashboardPage() {
           Visão geral de vendas, recebimentos e lotes de {me.tenant.name}.
         </p>
       </div>
+      <OnboardingCard o={onboarding} />
 
       <section aria-label="Indicadores financeiros" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {METRICS.map(({ label, value, note, icon: Icon }) => (
