@@ -54,6 +54,12 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 - Rotas `/api/v1/public/...` não exigem token. A empresa vem do `slug` da URL; o contexto RLS só é definido depois de confirmar empresa ativa **e** site publicado. Tudo o que sai passa por DTOs públicos de lista fechada.
 - O formulário de contato grava lead com consentimento LGPD; tem campo-isca e limite por empresa/contato. Como o web chama a API pelo servidor (BFF), a API não vê o IP do visitante: o limite por IP fica para quando houver proxy confiável repassando `X-Forwarded-For` (ou Redis + limite no próprio web).
 
+## Portal do comprador (Fase 5b)
+- Identidade separada da equipe: `portal_accounts` (por empresa) e JWT com `aud=portal-comprador` + `cid`; o decodificador da equipe rejeita tokens com `aud`, e o do portal exige `aud` — testado nos dois sentidos. Cada requisição revalida empresa ativa, acesso ativo e ativado e o comprador.
+- Convites: 256 bits aleatórios (`secrets.token_urlsafe(32)`), guardados só como sha256, uso único, expiração; o link aparece uma vez para quem gerou e nunca vai para a auditoria.
+- Senha Argon2id (mín. 8 caracteres); login com limite de tentativas por empresa+e-mail e o mesmo tempo/resposta para conta inexistente.
+- Todos os dados do portal saem por DTOs próprios com lista fechada de campos; consultas sempre filtradas pelo comprador do token (além do RLS por empresa).
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.

@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     public_leads_per_tenant_per_hour: int = 60
     public_leads_per_contact_per_hour: int = 3
 
+    # Portal do comprador: sessão e validade do convite
+    portal_token_minutes: int = 120
+    portal_invite_days: int = 7
+
     login_max_failures: int = 5
     login_window_seconds: int = 900
 

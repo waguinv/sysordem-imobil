@@ -33,3 +33,5 @@
 32. Integração direta com o banco (Open Finance / API de extrato) ou basta importar OFX/CSV? Quais bancos a empresa usa?
 33. Site público: quem publica (hoje owner/admin; incluir o comercial?), mostrar preços por padrão, e mostrar "reservado" separado de "vendido" (hoje ambos aparecem como indisponível)?
 34. Leads do site: distribuir automaticamente para corretores (rodízio) ou o comercial distribui? Fotos, planta e vídeo no site — onde guardar (armazenamento privado com URL temporária)?
+35. Portal do comprador: enviar convite e "esqueci a senha" por e-mail/WhatsApp (depende da decisão 10)? O comprador pode atualizar telefone/endereço pelo portal? Disponibilizar contrato assinado e boleto em PDF?
+36. Informe de pagamentos: formato exigido pelo contador (só valores pagos no ano, como hoje, ou também saldo devedor em 31/12 e CNPJ da empresa)?

@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { PortalInviteForm } from "@/components/portal/invite-card";
 import { ActionForm, Field } from "@/components/ui/action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/components/ui/primitives";
 import { createCustomerAction } from "@/lib/actions-fase2a";
@@ -59,40 +60,61 @@ export default async function CompradoresPage({ searchParams }: { searchParams: 
           </CardContent>
         </Card>
         {can(me, "customers:manage") && (
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>Novo comprador</CardTitle>
-                <CardDescription>Peça só os dados necessários para a venda.</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ActionForm action={createCustomerAction} submitLabel="Cadastrar" resetOnSuccess>
-                <Field label="Nome" htmlFor="name">
-                  <Input id="name" name="name" required minLength={2} maxLength={160} />
-                </Field>
-                <Field label="CPF ou CNPJ" htmlFor="document">
-                  <Input id="document" name="document" inputMode="numeric" maxLength={20} />
-                </Field>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="E-mail" htmlFor="email">
-                    <Input id="email" name="email" type="email" maxLength={254} />
-                  </Field>
-                  <Field label="Telefone" htmlFor="phone">
-                    <Input id="phone" name="phone" type="tel" maxLength={30} />
-                  </Field>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle>Novo comprador</CardTitle>
+                  <CardDescription>Peça só os dados necessários para a venda.</CardDescription>
                 </div>
-                <div className="grid grid-cols-[1fr_80px] gap-3">
-                  <Field label="Cidade" htmlFor="city">
-                    <Input id="city" name="city" maxLength={120} />
+              </CardHeader>
+              <CardContent>
+                <ActionForm action={createCustomerAction} submitLabel="Cadastrar" resetOnSuccess>
+                  <Field label="Nome" htmlFor="name">
+                    <Input id="name" name="name" required minLength={2} maxLength={160} />
                   </Field>
-                  <Field label="UF" htmlFor="state">
-                    <Input id="state" name="state" maxLength={2} className="uppercase" />
+                  <Field label="CPF ou CNPJ" htmlFor="document">
+                    <Input id="document" name="document" inputMode="numeric" maxLength={20} />
                   </Field>
-                </div>
-              </ActionForm>
-            </CardContent>
-          </Card>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="E-mail" htmlFor="email">
+                      <Input id="email" name="email" type="email" maxLength={254} />
+                    </Field>
+                    <Field label="Telefone" htmlFor="phone">
+                      <Input id="phone" name="phone" type="tel" maxLength={30} />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-[1fr_80px] gap-3">
+                    <Field label="Cidade" htmlFor="city">
+                      <Input id="city" name="city" maxLength={120} />
+                    </Field>
+                    <Field label="UF" htmlFor="state">
+                      <Input id="state" name="state" maxLength={2} className="uppercase" />
+                    </Field>
+                  </div>
+                </ActionForm>
+              </CardContent>
+            </Card>
+            {customers.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div>
+                    <CardTitle>Portal do comprador</CardTitle>
+                    <CardDescription>
+                      Gere o convite e envie o link ao comprador: ele cria a senha e passa a ver contrato,
+                      parcelas, 2ª via e informe de pagamentos. Um novo convite também serve para trocar a
+                      senha.
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <PortalInviteForm
+                    customers={customers.map((c) => ({ id: c.id, name: c.name, email: c.email }))}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </div>
     </div>

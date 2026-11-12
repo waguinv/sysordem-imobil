@@ -15,6 +15,7 @@ from app.api.v1 import (
     developments,
     finance,
     payables,
+    portal,
     reconciliation,
     reports,
     site,
@@ -23,7 +24,7 @@ from app.api.v1 import (
 from app.core.config import get_settings
 from app.core.db import get_engine
 
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 log = logging.getLogger("imobil.api")
 
 settings = get_settings()
@@ -72,7 +73,7 @@ v1 = APIRouter(prefix="/api/v1")
 
 @v1.get("", tags=["meta"])
 def api_root() -> dict[str, str]:
-    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "5a"}
+    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "5b"}
 
 
 v1.include_router(auth.router)
@@ -89,4 +90,5 @@ v1.include_router(charges.router)
 v1.include_router(reconciliation.router)
 v1.include_router(site.router)
 v1.include_router(site.public)
+v1.include_router(portal.router)
 app.include_router(v1)
