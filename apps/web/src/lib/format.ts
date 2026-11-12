@@ -173,3 +173,37 @@ export function installmentLabel(n: number, total?: number): string {
   if (n === 0) return "Entrada";
   return total ? `${n}/${total}` : `Parcela ${n}`;
 }
+
+export const PAYABLE_CATEGORY: Record<string, string> = {
+  comissao: "Comissão",
+  proprietario: "Repasse ao proprietário",
+  fornecedor: "Fornecedor",
+  obra: "Obra / infraestrutura",
+  imposto: "Imposto / taxa",
+  marketing: "Marketing",
+  outro: "Outro",
+};
+
+export function payableStatus(p: { status: string; overdue: boolean }): {
+  label: string;
+  badge: BadgeVariant | "danger";
+} {
+  if (p.status === "paga") return { label: "Paga", badge: "default" };
+  if (p.status === "cancelada") return { label: "Cancelada", badge: "muted" };
+  return p.overdue ? { label: "Vencida", badge: "danger" } : { label: "A pagar", badge: "outline" };
+}
+
+export const PAYABLE_EVENT: Record<string, string> = {
+  criada: "Criada",
+  pagamento: "Pagamento",
+  estorno: "Estorno do pagamento",
+  cancelamento: "Cancelamento",
+};
+
+export const COMMISSION_BASIS: Record<string, { label: string; hint: string }> = {
+  recebimento: {
+    label: "Sobre o recebido",
+    hint: "a cada parcela recebida (entrada inclusa), sem multa e juros de mora",
+  },
+  assinatura: { label: "Na assinatura", hint: "sobre o valor total do contrato, de uma vez" },
+};

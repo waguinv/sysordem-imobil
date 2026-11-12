@@ -24,6 +24,7 @@ from app.core.clock import business_today
 from app.models import ContractVersion, Installment, Payment, PaymentReversal, SalesContract
 from app.services import audit
 from app.services.finance import Settlement, build_schedule, quote, split_payment
+from app.services.payables import on_payment, on_reversal
 
 
 class ReceivableError(Exception):
@@ -195,6 +196,7 @@ def register_payment(
         inst.status = "paga"
         inst.paid_at = received_on
     db.flush()
+    on_payment(db, p)  # Fase 3b: comissão e repasse sobre o recebido
     audit.record(
         db,
         tenant_id=tenant_id,
@@ -235,6 +237,7 @@ def reverse_payment(
         inst.status = "aberta"
         inst.paid_at = None
     db.flush()
+    on_reversal(db, p)  # Fase 3b: estorna comissão e repasse gerados pelo recebimento
     audit.record(
         db,
         tenant_id=tenant_id,

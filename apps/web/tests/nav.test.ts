@@ -3,6 +3,7 @@ import {
   discountLabel,
   installmentLabel,
   installmentStatus,
+  payableStatus,
   maskDoc,
   parseDecimalBR,
   timeLeft,
@@ -49,6 +50,14 @@ describe("menu por permissão", () => {
   it("contas a receber exige finance:view", () => {
     expect(flat(["finance:view"])).toContain("/app/financeiro/receber");
     expect(flat(["contracts:view"])).not.toContain("/app/financeiro/receber");
+  });
+
+  it("contas a pagar e comissões exigem finance:view; regras exigem settings:manage", () => {
+    const fin = flat(["finance:view"]);
+    expect(fin).toContain("/app/financeiro/pagar");
+    expect(fin).toContain("/app/comissoes");
+    expect(fin).not.toContain("/app/configuracoes/financeiro");
+    expect(flat(["settings:manage"])).toContain("/app/configuracoes/financeiro");
   });
 
   it("rotas são únicas e findRoute encontra todas", () => {
@@ -132,5 +141,14 @@ describe("parcelas", () => {
     expect(installmentLabel(0, 12)).toBe("Entrada");
     expect(installmentLabel(3, 12)).toBe("3/12");
     expect(installmentLabel(3)).toBe("Parcela 3");
+  });
+});
+
+describe("contas a pagar", () => {
+  it("rotula a situação", () => {
+    expect(payableStatus({ status: "aberta", overdue: true })).toEqual({ label: "Vencida", badge: "danger" });
+    expect(payableStatus({ status: "aberta", overdue: false }).label).toBe("A pagar");
+    expect(payableStatus({ status: "paga", overdue: false }).label).toBe("Paga");
+    expect(payableStatus({ status: "cancelada", overdue: false }).label).toBe("Cancelada");
   });
 });

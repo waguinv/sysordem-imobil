@@ -56,6 +56,13 @@
 - `payments` e `payment_reversals` append-only (UPDATE/DELETE negados pelo banco); dois recebimentos simultâneos da mesma parcela: só um passa.
 - Isolamento (empresa B), RLS nas 3 tabelas, RBAC (leitura, comercial e corretor sem acesso; financeiro recebe e estorna).
 
+## Implementado (Fase 3b) — `tests/test_fase3b.py`
+- Regras: padrões do sistema, alteração só por quem tem `settings:manage`; repasse exige proprietário no empreendimento.
+- Créditos sobre o recebido (comissão 4% e repasse 10% de entrada + parcial); multa/mora fora da base; base "assinatura" credita o total uma vez; corretor sem % usa o padrão; regras congeladas na assinatura; contrato sem corretor só gera repasse.
+- Estorno de recebimento gera negativos; após comissão paga, o negativo abate o próximo acerto e saldo negativo não gera conta.
+- Acerto gera conta a pagar e é idempotente; cancelar devolve os créditos; ciclo da conta manual (pagar, data futura recusada, estornar, cancelar), resumo e filtros.
+- `participations` e `payable_events` protegidos no banco (UPDATE/DELETE negados; só `payable_id` editável); isolamento (empresa B), RLS nas 4 tabelas e RBAC.
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

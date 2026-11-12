@@ -86,6 +86,7 @@ class BrokerIn(BaseModel):
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=30)
     user_id: uuid.UUID | None = None  # usuário da equipe que acessa o sistema como este corretor
+    commission_pct: Annotated[Decimal, Field(ge=0, le=100, decimal_places=2)] | None = None  # None = padrão
 
     _doc = field_validator("document")(classmethod(lambda cls, v: _digits_doc(v)))
 
@@ -97,6 +98,7 @@ class BrokerUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=30)
     is_active: bool | None = None
     user_id: uuid.UUID | None = None
+    commission_pct: Annotated[Decimal, Field(ge=0, le=100, decimal_places=2)] | None = None
     reason: str = Field(min_length=3, max_length=500)
 
 
@@ -109,6 +111,7 @@ class BrokerOut(BaseModel):
     phone: str | None
     is_active: bool
     user_id: uuid.UUID | None
+    commission_pct: Decimal | None
 
 
 class ReservationIn(BaseModel):

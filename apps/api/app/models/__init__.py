@@ -131,6 +131,8 @@ class Development(Base):
     address: Mapped[str | None] = mapped_column(String(240))
     description: Mapped[str | None] = mapped_column(Text)
     land_owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    # Fase 3b: % dos recebimentos repassado ao proprietário da área (0 = sem repasse)
+    owner_share_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=Decimal("0"))
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -216,6 +218,8 @@ class Broker(Base):
     phone: Mapped[str | None] = mapped_column(String(30))
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Fase 3b: % de comissão próprio (None = padrão da empresa)
+    commission_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -270,6 +274,11 @@ class SalesContract(Base):
     signed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancel_reason: Mapped[str | None] = mapped_column(Text)
+    # Fase 3b: regras de comissão e repasse congeladas na assinatura
+    commission_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    commission_basis: Mapped[str | None] = mapped_column(String(20))
+    owner_share_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    land_owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
 
 class ContractVersion(Base):
@@ -444,4 +453,79 @@ class PaymentReversal(Base):
     payment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+
+
+# ───────────────────────── Fase 3b: comissões, repasses e contas a pagar ─────────────────────────
+
+
+class FinanceSettings(Base):
+    """Regras financeiras da empresa (comissão). Sem linha salva, valem os padrões do serviço."""
+
+    __tablename__ = "finance_settings"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), primary_key=True
+    )
+    commission_basis: Mapped[str] = mapped_column(String(20), nullable=False)
+    default_commission_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+
+
+class Payable(Base):
+    """Conta a pagar. Mudanças de situação ficam em PayableEvent (append-only)."""
+
+    __tablename__ = "payables"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    description: Mapped[str] = mapped_column(String(240), nullable=False)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)
+    payee_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    broker_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    land_owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    development_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="aberta")
+    paid_on: Mapped[date | None] = mapped_column(Date)
+    method: Mapped[str | None] = mapped_column(String(20))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class PayableEvent(Base):
+    __tablename__ = "payable_events"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    payable_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    event_date: Mapped[date | None] = mapped_column(Date)
+    method: Mapped[str | None] = mapped_column(String(20))
+    reason: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(always=True), nullable=False)
+
+
+class Participation(Base):
+    """Crédito de comissão (corretor) ou repasse (proprietário da área). Estorno = linha negativa."""
+
+    __tablename__ = "participations"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    broker_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    land_owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    payment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    reverses_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    base: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    payable_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = _created_at()
