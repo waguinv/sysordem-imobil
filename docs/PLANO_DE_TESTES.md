@@ -98,6 +98,14 @@
 - Pagamentos com estornados marcados; informe anual sem estornados; 2ª via idempotente, só de parcela própria em aberto; cotação.
 - Isolamento (empresa B), RLS nas 2 tabelas, `portal_tokens` protegido no banco e RBAC do convite (leitura e financeiro não convidam; comercial convida).
 
+## Implementado (Fase 5c) — `tests/test_fase5c.py`
+- Planos públicos; cadastro cria empresa, proprietário e teste de 14 dias e já permite login; validações (identificador inválido/reservado/em uso, e-mail existente, termos, campo-isca, senha curta, plano inválido) e limite de cadastros.
+- Limites: empreendimentos, lotes (avulso e em lote) e usuários (inclusive reativação); troca de plano para cima e para baixo (bloqueada se o uso não cabe); empresa sem assinatura sem limites.
+- Faturas: geradas 7 dias antes, sem duplicar, valor ajustado na troca de plano; Pix emitido uma vez; pagamento simulado ativa e estende a cobertura.
+- Webhook: assinatura inválida 401, valor menor não quita, idempotente (duplicado).
+- Atraso (grava) → suspensão (402 em alterações, leitura liberada, assinatura regularizável) → pagamento reabre; cancelamento mantém até o fim e depois só consulta; reativação volta a faturar.
+- Primeiros passos; isolamento (empresa B), RBAC (admin vê, não altera; comercial só vê o aviso), RLS nas 3 tabelas, `plans` global só leitura e `tenants` sem UPDATE/INSERT fora de (id, slug, name).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

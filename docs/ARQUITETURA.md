@@ -126,6 +126,18 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Web: `/portal/{empresa}/entrar`, `/ativar`, Meus contratos, contrato (próximas 6 parcelas com código de pagamento; as demais recolhidas) e Informe de pagamentos. Mobile-first, sem o menu da equipe.
 - **Limitações**: sem e-mail transacional (convite e "esqueci a senha" dependem da equipe); comprador não altera dados cadastrais nem baixa contrato/boleto em PDF; limite de tentativas em memória do processo.
 
+## Implementado na Fase 5c — planos SaaS, cadastro, onboarding e assinatura
+- Migration `0014`: `plans` (catálogo **global**, só leitura para a aplicação; Essencial R$ 197 — 1 empreendimento/300 lotes/3 usuários; Profissional R$ 397 — 5/2.000/10; Empresarial R$ 797 — ilimitado: **hipóteses**, decisão 37), `tenant_subscriptions` (1 por empresa), `subscription_invoices`, `billing_events` (append-only) — RLS nas três. A aplicação ganhou `GRANT INSERT (id, slug, name) ON tenants` — só para o cadastro.
+- **Cadastro self-service** (`POST /signup`, sem login): empresa + proprietário + assinatura em **teste de 14 dias** e já entra logado. Identificador validado (palavras reservadas), e-mail já existente recusado (sem sobrescrever conta), aceite dos termos registrado na auditoria, campo-isca e limite de cadastros por hora (em memória do processo).
+- **Situação calculada, nunca gravada** (`app/services/subscription.py`): teste → ativa (coberta por fatura paga) → em atraso (até 10 dias depois do vencimento, tudo funciona com aviso) → **suspensa** (só consulta). Cancelar mantém o acesso até o fim do período pago e depois fica só consulta; reativar volta a faturar. Empresas **sem assinatura** (criadas antes da 5c ou pelo operador) não têm limite nem bloqueio.
+- **Bloqueio**: com a assinatura suspensa/cancelada, toda requisição que altera dados recebe **402** (centralizado em `get_auth`), exceto `/billing/*` e troca de empresa — dá para regularizar sem ajuda.
+- **Limites do plano**: criar empreendimento, lotes (avulso ou em lote) e usuários ativos (inclusive reativar) respeita o plano (409 com a mensagem do limite). Reduzir de plano exige que o uso caiba.
+- **Faturas**: mensais, geradas 7 dias antes do fim da cobertura (sob demanda, sem job), um período por vez (índice único). Trocar de plano reajusta a fatura ainda não emitida. Pagamento por Pix/boleto no **PSP da plataforma** (mesmo adaptador da 4a; emitido uma vez), confirmação **só por webhook assinado e idempotente** (`/webhooks/billing/{provedor}/{empresa}`); valor menor que o devido não quita. Simulador no sandbox.
+- **Primeiros passos** (`GET /onboarding`): empreendimento, quadras/lotes, política de contratos, equipe, primeiro comprador, site publicado — cartão na tela inicial até concluir.
+- Permissões: `billing:view` (owner/admin) e `billing:manage` (só owner — hipótese). Aviso no topo para todos os membros (`/billing/status`).
+- Web: `/cadastro` (planos + formulário; link na tela de login), aviso de teste/atraso/suspensão no topo, cartão Primeiros passos e Configurações → Assinatura (uso × limites, faturas, Pix/boleto, simular no sandbox, trocar plano, cancelar/reativar).
+- **Limitações**: sem console do operador SaaS (ver/ajustar empresas, conceder cortesia, estornar fatura) — hoje via banco; sem nota fiscal da assinatura; sem e-mail de cobrança; preços e limites são hipóteses.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

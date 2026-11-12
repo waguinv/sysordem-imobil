@@ -60,6 +60,11 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 - Senha Argon2id (mín. 8 caracteres); login com limite de tentativas por empresa+e-mail e o mesmo tempo/resposta para conta inexistente.
 - Todos os dados do portal saem por DTOs próprios com lista fechada de campos; consultas sempre filtradas pelo comprador do token (além do RLS por empresa).
 
+## Assinatura e cadastro (Fase 5c)
+- O cadastro público é a única rota que cria empresa: o papel da aplicação só pode inserir `(id, slug, name)` em `tenants` (sem UPDATE/DELETE, sem mexer em `is_active`) — testado. E-mail já cadastrado é recusado (nunca sobrescreve senha de conta existente). Campo-isca e limite por hora contra robôs (mover para Redis/captcha antes de produção).
+- Faturas da assinatura só são quitadas por webhook com assinatura do PSP, deduplicado por evento (`billing_events`); redirect ou "simular" fora do sandbox não existem.
+- Suspensão bloqueia escrita no servidor (402) para qualquer rota, não só na interface.
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.

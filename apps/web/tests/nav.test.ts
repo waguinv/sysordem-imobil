@@ -8,6 +8,7 @@ import {
   parseDecimalBR,
   timeLeft,
 } from "@/lib/format";
+import { daysUntil, limitLabel } from "@/lib/billing";
 import { decimalBR, toCSV } from "@/lib/csv";
 import { findRoute, isGroup, NAV, navFor } from "@/lib/nav";
 import { initials } from "@/lib/utils";
@@ -177,5 +178,20 @@ describe("parcela renegociada", () => {
     expect(installmentStatus({ status: "renegociada", overdue: false, paid_principal: "0" }).label).toBe(
       "Renegociada",
     );
+  });
+});
+
+describe("assinatura", () => {
+  it("menu Assinatura exige billing:view", () => {
+    expect(flat(["billing:view"])).toContain("/app/configuracoes/assinatura");
+    expect(flat(["settings:manage"])).not.toContain("/app/configuracoes/assinatura");
+  });
+  it("descreve limites e conta dias", () => {
+    expect(limitLabel(null, "lotes")).toBe("lotes ilimitados");
+    expect(limitLabel(2000, "lotes")).toBe("até 2.000 lotes");
+    const now = new Date(2026, 10, 12, 23, 30);
+    expect(daysUntil("2026-11-12", now)).toBe(0);
+    expect(daysUntil("2026-11-19", now)).toBe(7);
+    expect(daysUntil("2026-11-10", now)).toBe(-2);
   });
 });

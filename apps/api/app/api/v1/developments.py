@@ -203,11 +203,22 @@ def list_developments(ctx: AuthContext = Depends(require(Perm.DEVELOPMENTS_VIEW)
     return [_dev_out(d, sums.get(d.id)) for d in devs]
 
 
+def _plan_limit(ctx: AuthContext, kind: str, adding: int) -> None:
+    """Fase 5c: respeita os limites do plano da empresa (sem assinatura = sem limite)."""
+    from app.services.subscription import LimitError, check_limit
+
+    try:
+        check_limit(ctx.db, ctx.tenant_id, kind, adding)
+    except LimitError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from None
+
+
 @router.post("/developments", response_model=DevelopmentOut, status_code=status.HTTP_201_CREATED)
 def create_development(
     body: DevelopmentIn, ctx: AuthContext = Depends(require(Perm.DEVELOPMENTS_MANAGE))
 ) -> DevelopmentOut:
     _check_owner(ctx, body.land_owner_id)
+    _plan_limit(ctx, "developments", 1)
     dev = Development(tenant_id=ctx.tenant_id, **body.model_dump())
     ctx.db.add(dev)
     ctx.db.flush()
@@ -364,6 +375,7 @@ def create_lot(
     number = body.number.upper()
     if ctx.db.scalar(select(Lot.id).where(Lot.block_id == block.id, Lot.number == number)):
         raise _conflict("Já existe um lote com este número na quadra")
+    _plan_limit(ctx, "lots", 1)
     lot = _new_lot(
         ctx,
         dev,
@@ -399,6 +411,7 @@ def create_lots_batch(
     taken = set(ctx.db.scalars(select(Lot.number).where(Lot.block_id == block.id, Lot.number.in_(numbers))))
     if taken:
         raise _conflict(f"Números já existentes na quadra: {', '.join(sorted(taken))}")
+    _plan_limit(ctx, "lots", len(numbers))
     try:
         lots = [
             _new_lot(ctx, dev, block, n, area_m2=body.area_m2, front_m=body.front_m, price=body.price)

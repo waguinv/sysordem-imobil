@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Entrar" };
@@ -17,6 +18,12 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
         </p>
       )}
       <LoginForm />
+      <p className="text-muted-foreground text-center text-sm">
+        Ainda não usa o SysOrdem Imobil?{" "}
+        <Link href="/cadastro" className="text-brand-institutional font-medium underline">
+          Criar conta da empresa
+        </Link>
+      </p>
     </div>
   );
 }

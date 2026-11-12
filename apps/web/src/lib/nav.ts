@@ -91,6 +91,11 @@ export const NAV: NavEntry[] = [
         permission: "settings:manage",
       },
       {
+        title: "Assinatura",
+        href: "/app/configuracoes/assinatura",
+        permission: "billing:view",
+      },
+      {
         title: "Regras de comissão",
         href: "/app/configuracoes/financeiro",
         permission: "settings:manage",
