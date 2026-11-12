@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # Janela aceita para o carimbo de tempo do webhook (proteção contra replay)
     payments_webhook_tolerance_seconds: int = 300
 
+    # Site público (Fase 5a): limite do formulário de contato (por empresa e por contato)
+    public_leads_per_tenant_per_hour: int = 60
+    public_leads_per_contact_per_hour: int = 3
+
     login_max_failures: int = 5
     login_window_seconds: int = 900
 

@@ -133,6 +133,10 @@ class Development(Base):
     land_owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     # Fase 3b: % dos recebimentos repassado ao proprietário da área (0 = sem repasse)
     owner_share_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=Decimal("0"))
+    # Fase 5a: publicação explícita no site, com texto público próprio (nunca a descrição interna)
+    site_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    site_description: Mapped[str | None] = mapped_column(Text)
+    site_published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -348,6 +352,7 @@ class Lead(Base):
     customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     lost_reason: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Fase 5a: LGPD (site)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = mapped_column(
@@ -705,3 +710,29 @@ class Reconciliation(Base):
     undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     undone_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     undo_reason: Mapped[str | None] = mapped_column(Text)
+
+
+# ───────────────────────── Fase 5a: site público ─────────────────────────
+
+
+class SiteSettings(Base):
+    """Configuração do site público da empresa. Sem linha salva: site não publicado."""
+
+    __tablename__ = "site_settings"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), primary_key=True
+    )
+    published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    title: Mapped[str | None] = mapped_column(String(120))
+    tagline: Mapped[str | None] = mapped_column(String(200))
+    about: Mapped[str | None] = mapped_column(Text)
+    contact_phone: Mapped[str | None] = mapped_column(String(30))
+    contact_whatsapp: Mapped[str | None] = mapped_column(String(30))
+    contact_email: Mapped[str | None] = mapped_column(String(254))
+    show_prices: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    lead_form_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )

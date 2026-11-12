@@ -79,7 +79,7 @@ export const NAV: NavEntry[] = [
     icon: FileBarChart,
     permission: "contracts:view",
   },
-  { title: "Site público", href: "/app/site", icon: Globe, permission: "tenant:view", soon: "Fase 5" },
+  { title: "Site público", href: "/app/site", icon: Globe, permission: "site:manage" },
   {
     title: "Configurações",
     icon: Settings,
