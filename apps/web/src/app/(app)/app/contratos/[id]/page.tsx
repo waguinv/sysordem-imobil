@@ -1,8 +1,9 @@
-import { ArrowLeft, History } from "lucide-react";
+import { ArrowLeft, History, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TermsFields } from "@/components/contracts/terms-fields";
+import { InstallmentsTable } from "@/components/finance/installments-table";
 import { ActionForm, Field } from "@/components/ui/action-form";
 import {
   Badge,
@@ -16,7 +17,7 @@ import {
 import { cancelContractAction, newVersionAction, signContractAction } from "@/lib/actions-fase2b";
 import { ADJUSTMENT_INDEX, brl, CONTRACT_STATUS, dateBR, dateTime, pct } from "@/lib/format";
 import { api, ApiError, can, getMe } from "@/lib/session";
-import type { ContractDetail, ContractPolicy, ContractTerms } from "@/lib/types";
+import type { ContractDetail, ContractPolicy, ContractTerms, Installment } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Contrato" };
 
@@ -68,6 +69,12 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
   const draft = c.status === "rascunho";
   const manage = can(me, "contracts:manage") && draft;
   const sign = can(me, "contracts:sign") && draft;
+  const installments =
+    c.status === "assinado" && can(me, "finance:view")
+      ? await api<Installment[]>(`/contracts/${c.id}/installments`)
+      : [];
+  const paid = installments.filter((i) => i.status === "paga").length;
+  const overdue = installments.filter((i) => i.overdue).length;
 
   return (
     <div className="space-y-6">
@@ -175,6 +182,25 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
                 <Input id="version-reason" name="reason" required minLength={3} maxLength={500} />
               </Field>
             </ActionForm>
+          </CardContent>
+        </Card>
+      )}
+
+      {installments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="text-brand size-4" /> Parcelas
+              </CardTitle>
+              <CardDescription>
+                {paid} de {installments.length} quitada(s)
+                {overdue > 0 && ` · ${overdue} vencida(s)`}. Abra uma parcela para registrar o recebimento.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <InstallmentsTable items={installments} total={c.terms.installments_count} />
           </CardContent>
         </Card>
       )}

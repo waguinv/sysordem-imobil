@@ -19,6 +19,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.clock import business_today
 from app.models import Lead, LeadActivity, Lot, Proposal, Reservation
 from app.services import audit
 from app.services import reservations as reservation_svc
@@ -38,7 +39,7 @@ class ProposalNotFoundError(ProposalError):
 
 
 def _today() -> date:
-    return datetime.now(UTC).date()
+    return business_today()
 
 
 def _lead_activity(db: Session, p: Proposal, text: str, actor: uuid.UUID | None) -> None:

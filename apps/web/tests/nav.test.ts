@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { discountLabel, maskDoc, parseDecimalBR, timeLeft } from "@/lib/format";
+import {
+  discountLabel,
+  installmentLabel,
+  installmentStatus,
+  maskDoc,
+  parseDecimalBR,
+  timeLeft,
+} from "@/lib/format";
 import { findRoute, isGroup, NAV, navFor } from "@/lib/nav";
 import { initials } from "@/lib/utils";
 
@@ -37,6 +44,11 @@ describe("menu por permissão", () => {
     expect(flat(["leads:view"])).not.toContain("/app/propostas");
     expect(flat(["proposals:view"])).toContain("/app/propostas");
     expect(flat(["tenant:view"])).not.toContain("/app/leads");
+  });
+
+  it("contas a receber exige finance:view", () => {
+    expect(flat(["finance:view"])).toContain("/app/financeiro/receber");
+    expect(flat(["contracts:view"])).not.toContain("/app/financeiro/receber");
   });
 
   it("rotas são únicas e findRoute encontra todas", () => {
@@ -96,5 +108,29 @@ describe("discountLabel", () => {
     expect(discountLabel("5.00")).toBe("5% de desconto");
     expect(discountLabel("-2.50")).toBe("2,5% acima da tabela");
     expect(discountLabel("0.00")).toBe("preço de tabela");
+  });
+});
+
+describe("parcelas", () => {
+  it("rotula a situação considerando atraso e pagamento parcial", () => {
+    expect(installmentStatus({ status: "paga", overdue: false, paid_principal: "10" }).label).toBe("Paga");
+    expect(installmentStatus({ status: "aberta", overdue: true, paid_principal: "0" })).toEqual({
+      label: "Vencida",
+      badge: "danger",
+    });
+    expect(installmentStatus({ status: "aberta", overdue: true, paid_principal: "5" }).label).toBe(
+      "Vencida (parcial)",
+    );
+    expect(installmentStatus({ status: "aberta", overdue: false, paid_principal: "5" }).label).toBe(
+      "Parcialmente paga",
+    );
+    expect(installmentStatus({ status: "aberta", overdue: false, paid_principal: "0" }).label).toBe(
+      "A vencer",
+    );
+  });
+  it("numera parcelas e entrada", () => {
+    expect(installmentLabel(0, 12)).toBe("Entrada");
+    expect(installmentLabel(3, 12)).toBe("3/12");
+    expect(installmentLabel(3)).toBe("Parcela 3");
   });
 });

@@ -19,11 +19,13 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.clock import business_today
 from app.models import ContractVersion, Lot, Reservation, SalesContract
 from app.services import audit
 from app.services.finance import first_installment, money
 from app.services.lots import LotStatus, apply_status
 from app.services.policy import Policy, get_policy
+from app.services.receivables import generate_schedule
 from app.services.reservations import expire_due
 
 
@@ -109,7 +111,7 @@ def _check_basic(t: Terms, total: Decimal) -> None:
         raise ContractError("Com a entrada igual ao total, não há parcelas")
     if t.installments_count > 0 and t.first_due_date is None:
         raise ContractError("Informe o vencimento da 1ª parcela")
-    if t.first_due_date is not None and t.first_due_date < datetime.now(UTC).date():
+    if t.first_due_date is not None and t.first_due_date < business_today():
         raise ContractError("Vencimento da 1ª parcela não pode estar no passado")
 
 
@@ -294,6 +296,8 @@ def sign(
         reason=f"contrato {c.number} assinado",
         extra={"contract_id": str(c.id)},
     )
+    db.flush()
+    generate_schedule(db, c, actor=actor)  # Fase 3a: cronograma de parcelas nasce na assinatura
     audit.record(
         db,
         tenant_id=tenant_id,

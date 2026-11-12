@@ -61,14 +61,13 @@ export const NAV: NavEntry[] = [
     title: "Financeiro",
     icon: Wallet,
     items: [
-      { title: "Parcelas", href: "/app/financeiro/parcelas", permission: "tenant:view", soon: "Fase 3" },
       {
         title: "Contas a receber",
         href: "/app/financeiro/receber",
-        permission: "tenant:view",
-        soon: "Fase 3",
+        permission: "finance:view",
+        alsoActive: ["/app/financeiro/parcelas"],
       },
-      { title: "Contas a pagar", href: "/app/financeiro/pagar", permission: "tenant:view", soon: "Fase 3" },
+      { title: "Contas a pagar", href: "/app/financeiro/pagar", permission: "tenant:view", soon: "Fase 3b" },
       {
         title: "Conciliação",
         href: "/app/financeiro/conciliacao",
@@ -77,13 +76,13 @@ export const NAV: NavEntry[] = [
       },
     ],
   },
-  { title: "Comissões", href: "/app/comissoes", icon: HandCoins, permission: "tenant:view", soon: "Fase 3" },
+  { title: "Comissões", href: "/app/comissoes", icon: HandCoins, permission: "tenant:view", soon: "Fase 3b" },
   {
     title: "Relatórios",
     href: "/app/relatorios",
     icon: FileBarChart,
     permission: "tenant:view",
-    soon: "Fase 3",
+    soon: "Fase 3c",
   },
   { title: "Site público", href: "/app/site", icon: Globe, permission: "tenant:view", soon: "Fase 5" },
   {

@@ -58,6 +58,16 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Permissões: `leads:view|manage` (owner/admin/comercial/corretor), `proposals:view` (+ financeiro), `proposals:manage` (owner/admin/comercial/corretor). Aceitar exige também `reservations:manage`; converter exige `customers:manage`.
 - Web: Leads (lista, filtros, cadastro, histórico, conversão), Propostas (lista e decisão), painel de propostas na tela do lote, contrato pré-preenchido pela proposta aceita e vínculo corretor ↔ usuário em Corretores.
 
+## Implementado na Fase 3a — parcelas, contas a receber e recebimentos
+- Tabelas (RLS + FKs compostas; migration `0007`): `installments`, `payments` e `payment_reversals` — as duas últimas **append-only** (o papel da aplicação só tem `SELECT, INSERT`): lançamento nunca é editado nem apagado, corrige-se por estorno (um por recebimento, índice único).
+- **Cronograma** gerado na **assinatura** a partir da versão assinada (`app/services/finance.py: build_schedule`): nº 0 = entrada (vence no dia da assinatura); parcelas mensais a partir do 1º vencimento (dia 31 → último dia do mês). Price: parcela fixa, juros sobre o saldo; SAC: amortização constante. A **última parcela absorve os centavos**, então a soma das amortizações é exatamente o saldo financiado. Contratos assinados antes da 3a ganham o cronograma na 1ª consulta.
+- **Recebimento** de uma parcela, total ou **parcial**, com data (não futura) e forma (Pix, boleto, transferência…). Em atraso: multa (% única) e juros de mora pro rata die (mês de 30 dias), com as taxas da versão do contrato, incidindo **só sobre a parte da parcela quitada agora** — pagar em duas vezes custa o mesmo que de uma vez. Valor acima do devido é recusado. Parcela travada (`FOR UPDATE`) contra recebimentos simultâneos.
+- **Estorno** com motivo devolve o valor à parcela (volta a "aberta"). Recebido no mês é líquido de estornos.
+- **Datas de negócio** no fuso da empresa (`BUSINESS_TIMEZONE`, padrão `America/Sao_Paulo`, `app/core/clock.py`): vencimentos, atraso e validade de propostas não viram o dia às 21h.
+- **Correção monetária (IPCA/IGP-M/INCC) ainda não é aplicada** — falta definir a fonte dos índices; o índice fica registrado no contrato.
+- Permissões: `finance:view`, `finance:manage` (registrar), `finance:reverse` (estornar) — owner, admin e financeiro. Comercial e corretor não veem o financeiro.
+- Web: Financeiro → Contas a receber (resumo: vencido, vence em 30 dias, em aberto, recebido no mês; filtros e busca), tela da parcela (valor para quitar hoje, recebimento, estorno) e parcelas na tela do contrato.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

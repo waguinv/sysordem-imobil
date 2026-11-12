@@ -3,7 +3,7 @@
 2. Tipo e localização dos empreendimentos; requisitos municipais aplicáveis.
 3. Forma de pagamento ao proprietário da área e base da comissão.
 4. Base e momento de cálculo da comissão dos corretores.
-5. Regras para juros, multa, correção, antecipação, renegociação e distrato.
+5. Regras para juros, multa, correção, antecipação, renegociação e distrato. *Fase 3a adotou (a validar com jurídico/contábil): multa única + mora pro rata die (mês de 30 dias) sobre a parte paga em atraso; correção monetária ainda não aplicada; antecipação, renegociação e distrato ficam para a 3c.*
 6. Banco/PSP prioritário e meios de cobrança do MVP.
 7. Formato da planta (DWG, KML, GeoJSON, PDF, imagem etc.). *Hoje: mapa esquemático por quadra; `lots.geometry` (GeoJSON) reservado.*
 8. Quantidade de empresas, empreendimentos, lotes, usuários e contratos para migração.
@@ -19,3 +19,6 @@
 18. Assinatura eletrônica gratuita e integrável — **recomendação: Documenso (Community Edition, open source AGPL-3.0, auto-hospedado, com API e webhooks)**, rodando junto no Docker Compose. Alternativas SaaS com plano grátis (ZapSign, Autentique) limitam documentos/mês e, pelas fontes consultadas, exigem plano pago para usar a API em produção. Confirmar a escolha e validar com jurídico o tipo de assinatura exigido (eletrônica avançada × ICP-Brasil) para o registro dos contratos.
 19. Validade padrão da proposta (adotado: 7 dias; máx. 90) e se proposta aceita deve recusar automaticamente as concorrentes no mesmo lote (hoje elas ficam abertas e não podem mais ser aceitas).
 20. Quais origens de lead usar e se haverá captura automática (formulário do site, WhatsApp) — prevista com o site público (Fase 5).
+21. Fonte e periodicidade dos índices de correção (IPCA/IGP-M/INCC): manual mensal, arquivo ou integração (ex.: séries do Banco Central)? Aplicar anualmente ou mensalmente?
+22. Vencimento da entrada: hoje vence no dia da assinatura — confirmar se deve ser configurável.
+23. O perfil comercial deve consultar a situação de pagamento dos clientes? (hoje só owner, admin e financeiro veem o financeiro)

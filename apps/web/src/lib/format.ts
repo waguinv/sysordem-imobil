@@ -145,3 +145,31 @@ export function discountLabel(discountPct: string): string {
   const v = Math.abs(d).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
   return d > 0 ? `${v}% de desconto` : `${v}% acima da tabela`;
 }
+
+export const PAYMENT_METHOD: Record<string, string> = {
+  pix: "Pix",
+  boleto: "Boleto",
+  transferencia: "Transferência",
+  dinheiro: "Dinheiro",
+  cartao: "Cartão",
+  cheque: "Cheque",
+  outro: "Outro",
+};
+
+/** Rótulo e cor da situação da parcela ("vencida" é aberta com vencimento passado). */
+export function installmentStatus(i: { status: string; overdue: boolean; paid_principal: string }): {
+  label: string;
+  badge: BadgeVariant | "danger";
+} {
+  if (i.status === "paga") return { label: "Paga", badge: "default" };
+  if (i.status === "cancelada") return { label: "Cancelada", badge: "muted" };
+  const partial = Number(i.paid_principal) > 0;
+  if (i.overdue) return { label: partial ? "Vencida (parcial)" : "Vencida", badge: "danger" };
+  return { label: partial ? "Parcialmente paga" : "A vencer", badge: partial ? "warning" : "outline" };
+}
+
+/** "Entrada" para o nº 0; "3/120" para as demais. */
+export function installmentLabel(n: number, total?: number): string {
+  if (n === 0) return "Entrada";
+  return total ? `${n}/${total}` : `Parcela ${n}`;
+}

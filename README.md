@@ -2,10 +2,11 @@
 
 SaaS multiempresa para gestão de loteamentos de terrenos e chácaras: empreendimentos, quadras/lotes, vendas, contratos, parcelas, contas a pagar/receber, comissões e site público. Produto da família **SysOrdem** (mesma identidade visual do [SysOrdem Saúde](https://github.com/waguinv/sysordem-saude)). Codinome anterior: *LoteaPro*.
 
-> **Status: Fase 2c concluída** — autenticação, multi-tenancy com RLS, RBAC, auditoria; empreendimentos, quadras,
-> lotes e mapa; compradores, corretores, reservas com expiração, contratos com condições versionadas e
-> **CRM: leads, propostas e escopo do corretor** (corretor vê só os próprios clientes).
-> Ainda **não** há parcelas/financeiro (Fase 3). Não use dados reais nem publique em produção — ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
+> **Status: Fase 3a concluída** — autenticação, multi-tenancy com RLS, RBAC, auditoria; empreendimentos, quadras,
+> lotes e mapa; CRM (leads, propostas, escopo do corretor), reservas, contratos versionados e
+> **parcelas e contas a receber** (cronograma na assinatura, recebimentos parciais com multa/mora, estornos).
+> Ainda **não** há comissões/contas a pagar (3b), renegociação/distrato/relatórios (3c) nem correção monetária.
+> Não use dados reais nem publique em produção — ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
 ## Stack
 - **Web**: Next.js 16 + React 19 + TypeScript + Tailwind CSS 4 (identidade SysOrdem), mobile-first.
