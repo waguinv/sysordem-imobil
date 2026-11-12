@@ -118,6 +118,14 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Permissão nova `site:manage` (owner/admin — hipótese). Web: Site público no painel (dados do site, publicar empreendimentos) e páginas públicas `/s/{slug}` e `/s/{slug}/empreendimentos/{id}` (mapa por quadra, formulário com lote de interesse), mobile-first.
 - **Limitações**: endereço `/s/{slug}` no domínio do sistema (domínio próprio da empresa é a decisão 10); sem fotos/planta ainda; limite de envios por processo.
 
+## Implementado na Fase 5b — portal do comprador
+- Migration `0013`: `portal_accounts` (1 acesso por comprador; e-mail único por empresa, sempre minúsculo; senha só depois de ativar — check no banco) e `portal_tokens` (convites de uso único, **só o hash sha256** é guardado; append-only exceto `used_at`). RLS nas duas.
+- **Convite** (`customers:manage`, respeitando o escopo do corretor): a equipe gera em Compradores → Portal do comprador; o link `/portal/{empresa}/ativar?token=…` aparece **uma única vez** (sem envio de e-mail ainda — decisão 10). Vale 7 dias (`PORTAL_INVITE_DAYS`). Um novo convite invalida os anteriores e serve para trocar senha esquecida. A equipe pode bloquear/reativar o acesso (motivo auditado); bloquear derruba a sessão na hora.
+- **Sessão do comprador**: JWT com `aud` próprio (`portal-comprador`), id do comprador (`cid`) e sem `mid` — não abre rotas da equipe, e o token da equipe não abre o portal. Cookie httpOnly separado (`imobil_portal`), 120 min (`PORTAL_TOKEN_MINUTES`). Login com limite de tentativas; resposta igual para e-mail inexistente e senha errada.
+- **O que o comprador vê** (`/portal/*`, sempre filtrado pelo comprador do token; o resto responde 404): só contratos **assinados ou distratados**; parcelas com numeração do plano vigente ("Parcela 3/120" ou "Parcela 2/24 (renegociação)"); pagamentos (com estornados marcados); valor para quitar hoje; **2ª via Pix/boleto** pela mesma integração da 4a (se já há cobrança pendente da parcela, devolve a mesma — o comprador não cancela nem duplica); **informe anual de pagamentos** (estornados não entram) para imprimir/salvar em PDF. DTOs com lista fechada de campos, testados chave a chave: nada de corretor, comissão, anotações, autor de lançamento ou auditoria.
+- Web: `/portal/{empresa}/entrar`, `/ativar`, Meus contratos, contrato (próximas 6 parcelas com código de pagamento; as demais recolhidas) e Informe de pagamentos. Mobile-first, sem o menu da equipe.
+- **Limitações**: sem e-mail transacional (convite e "esqueci a senha" dependem da equipe); comprador não altera dados cadastrais nem baixa contrato/boleto em PDF; limite de tentativas em memória do processo.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

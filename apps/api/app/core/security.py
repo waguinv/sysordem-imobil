@@ -50,3 +50,37 @@ def decode_access_token(token: str) -> dict[str, Any]:
         issuer=s.jwt_issuer,
         options={"require": ["exp", "iat", "sub", "tid", "mid", "iss"]},
     )
+
+
+# ───────────────────────── Fase 5b: token do portal do comprador ─────────────────────────
+
+PORTAL_AUDIENCE = "portal-comprador"
+
+
+def create_portal_token(*, account_id: uuid.UUID, tenant_id: uuid.UUID, customer_id: uuid.UUID) -> str:
+    """Token do comprador: `aud` próprio e sem `mid` — não serve nas rotas da equipe (e vice-versa)."""
+    s = get_settings()
+    now = datetime.now(UTC)
+    payload = {
+        "iss": s.jwt_issuer,
+        "aud": PORTAL_AUDIENCE,
+        "sub": str(account_id),
+        "tid": str(tenant_id),
+        "cid": str(customer_id),
+        "iat": now,
+        "exp": now + timedelta(minutes=s.portal_token_minutes),
+        "jti": uuid.uuid4().hex,
+    }
+    return jwt.encode(payload, s.jwt_secret, algorithm=s.jwt_algorithm)
+
+
+def decode_portal_token(token: str) -> dict[str, Any]:
+    s = get_settings()
+    return jwt.decode(
+        token,
+        s.jwt_secret,
+        algorithms=[s.jwt_algorithm],
+        issuer=s.jwt_issuer,
+        audience=PORTAL_AUDIENCE,
+        options={"require": ["exp", "iat", "sub", "tid", "cid", "iss", "aud"]},
+    )

@@ -87,7 +87,8 @@ def issue_charge(
     installment_id: uuid.UUID,
     method: ChargeMethod,
     due_date: date | None,
-    actor: uuid.UUID,
+    actor: uuid.UUID | None,
+    origin: str = "equipe",
 ) -> Charge:
     provider = psp.default_provider()
     if provider is None:
@@ -171,6 +172,7 @@ def issue_charge(
             "method": method,
             "amount": str(amount),
             "due_date": due.isoformat(),
+            "origin": origin,  # "equipe" ou "portal" (comprador emitiu a 2ª via)
         },
     )
     return c

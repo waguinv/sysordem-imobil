@@ -90,6 +90,14 @@
 - Formulário: lead com origem site, consentimento e lote de interesse; mesmo telefone em outro formato não duplica; sem consentimento/contato/DDD → 422; lote ou empreendimento não publicado → 404; campo-isca não grava; limite por contato e por empresa (429); formulário desligado → 404.
 - Isolamento (empreendimento da A pelo endereço da B = 404; B não publica da A; empresa inativa sai do ar) e RBAC (`site:manage` só owner/admin).
 
+## Implementado (Fase 5b) — `tests/test_fase5b.py`
+- Convite: exige e-mail, link de uso único, só o hash guardado, e-mail não repete entre compradores; novo convite invalida o anterior e troca a senha; convite expirado recusado; ativação com senha curta recusada.
+- Login: e-mail sem diferenciar maiúsculas, senha errada 401, limite de tentativas (429), bloqueio derruba a sessão aberta.
+- Tokens não se misturam: token do portal não abre rotas da equipe e vice-versa.
+- Escopo do comprador: só contratos próprios assinados (rascunho e de outro comprador não aparecem/404); lista fechada de campos; numeração das parcelas inclusive após renegociação.
+- Pagamentos com estornados marcados; informe anual sem estornados; 2ª via idempotente, só de parcela própria em aberto; cotação.
+- Isolamento (empresa B), RLS nas 2 tabelas, `portal_tokens` protegido no banco e RBAC do convite (leitura e financeiro não convidam; comercial convida).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

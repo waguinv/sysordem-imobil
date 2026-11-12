@@ -736,3 +736,40 @@ class SiteSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+# ───────────────────────── Fase 5b: portal do comprador ─────────────────────────
+
+
+class PortalAccount(Base):
+    """Acesso do comprador ao portal (sem senha até ativar o convite)."""
+
+    __tablename__ = "portal_accounts"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    email: Mapped[str] = mapped_column(String(254), nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    invited_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class PortalToken(Base):
+    """Convite de uso único (só o hash do token é guardado)."""
+
+    __tablename__ = "portal_tokens"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(20), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()

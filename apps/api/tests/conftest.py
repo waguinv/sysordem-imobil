@@ -120,7 +120,8 @@ def world(owner_engine) -> World:
     with owner_engine.begin() as c:
         c.execute(
             text(
-                "TRUNCATE site_settings, reconciliations, statement_lines, bank_statements, bank_accounts, "
+                "TRUNCATE portal_tokens, portal_accounts, site_settings, reconciliations, "
+                "statement_lines, bank_statements, bank_accounts, "
                 "webhook_events, charges, rescissions, renegotiations, participations, "
                 "payable_events, payables, finance_settings, "
                 "payment_reversals, payments, installments, proposals, lead_activities, leads, "
