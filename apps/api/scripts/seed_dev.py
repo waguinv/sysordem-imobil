@@ -19,6 +19,7 @@ TENANTS = [("demo", "Loteadora Demonstração"), ("outra", "Outra Empresa Demo")
 USERS = [
     ("admin@demo.test", "Admin Demonstração", [("demo", "owner")]),
     ("leitura@demo.test", "Leitura Demonstração", [("demo", "leitura")]),
+    ("corretor@demo.test", "Corretor Demonstração", [("demo", "corretor")]),
     ("admin@outra.test", "Admin Outra Empresa", [("outra", "owner")]),
 ]
 

@@ -36,6 +36,8 @@ O banco deve ser **UTF-8** (`/ready` responde 503 caso contrário): o driver dec
 ## RBAC
 Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `leitura`. A matriz fica em `app/auth/rbac.py`; rotas exigem **permissões** (`require(Perm.X)`), nunca perfis. Só `owner` cria/altera outro `owner`; ninguém altera o próprio vínculo.
 
+**Escopo por corretor** (Fase 2c): além da permissão, o perfil `corretor` passa por um filtro de linha em `app/auth/scope.py` — só registros com o `broker_id` ligado ao seu usuário (`brokers.user_id`, corretor ativo). Fora do escopo a API responde 404 (não revela existência) e o corretor nunca escolhe outro corretor. Sem vínculo ativo, 403 com mensagem clara. O filtro é da aplicação (o RLS do banco continua isolando por empresa).
+
 ## Auditoria
 `audit_events` registra ator, data/hora, entidade, ação, motivo e dados antes/depois. É **append-only**: o papel da aplicação só tem `SELECT, INSERT` (UPDATE/DELETE negados pelo banco — testado). Login, troca de empresa e alterações de vínculo são auditados.
 

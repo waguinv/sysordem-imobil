@@ -49,10 +49,11 @@ export const NAV: NavEntry[] = [
     title: "Comercial",
     icon: UsersRound,
     items: [
+      { title: "Leads", href: "/app/leads", permission: "leads:view" },
+      { title: "Propostas", href: "/app/propostas", permission: "proposals:view" },
       { title: "Reservas", href: "/app/reservas", permission: "reservations:view" },
       { title: "Compradores", href: "/app/compradores", permission: "customers:view" },
       { title: "Corretores", href: "/app/corretores", permission: "brokers:view" },
-      { title: "Leads e propostas", href: "/app/crm", permission: "tenant:view", soon: "Fase 2b" },
     ],
   },
   { title: "Contratos", href: "/app/contratos", icon: FileSignature, permission: "contracts:view" },

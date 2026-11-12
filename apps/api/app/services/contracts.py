@@ -92,6 +92,11 @@ def _resolve(t: Terms, total: Decimal, p: Policy) -> Resolved:
     return Resolved(interest, amort, index, late_fee, late_int, amount)
 
 
+def evaluate_terms(db: Session, tenant_id: uuid.UUID, terms: Terms, total: Decimal) -> Resolved:
+    """Valida condições contra a política da empresa (usado também por propostas, Fase 2c)."""
+    return _resolve(terms, total, get_policy(db, tenant_id))
+
+
 def _check_basic(t: Terms, total: Decimal) -> None:
     if total <= 0:
         raise ContractError("Valor total deve ser maior que zero")

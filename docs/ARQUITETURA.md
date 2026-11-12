@@ -30,7 +30,7 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - **Expiração**: sob demanda (ao abrir mapa, lote, reserva e lista) e pelo job `python -m scripts.expire_reservations` (agendar a cada ~5 min). Expiração libera o lote com histórico "reserva expirada" (ator: sistema).
 - "Converter em venda" marca o lote como vendido; na Fase 2b passará a gerar o contrato.
 - Rotas: `/customers`, `/brokers`, `/reservations` (+ `/{id}`, `/{id}/cancel`, `/{id}/convert`).
-- Permissões: `customers:view|manage`, `brokers:view|manage`, `reservations:view|manage`. Comercial reserva e cadastra compradores; financeiro só consulta; corretor e leitura ainda sem acesso (escopo "só meus clientes" na Fase 2b).
+- Permissões: `customers:view|manage`, `brokers:view|manage`, `reservations:view|manage`. Comercial reserva e cadastra compradores; financeiro só consulta; leitura sem acesso; corretor com escopo próprio desde a Fase 2c (ver abaixo).
 - Web: Compradores (busca, documento mascarado), Corretores (ativar/desativar), Reservas (filtros, prazo restante) e painel de reserva na tela do lote.
 
 ## Implementado na Fase 2b
@@ -49,6 +49,14 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - `contract_versions.amortization` registra o sistema escolhido; `installment_amount` é a parcela (Price) ou a 1ª parcela (SAC: P/n + P·i, decrescentes).
 - `GET /settings/contract-policy` (quem vê contratos) e `PUT` (`settings:manage`: owner/admin), auditado com antes/depois e motivo. Alterar a política não muda contratos existentes.
 - Web: Configurações → Política de contratos; o formulário do contrato mostra os padrões e limites da empresa.
+
+## Implementado na Fase 2c — CRM, propostas e escopo do corretor
+- Tabelas (RLS + FKs compostas; migration `0006`): `leads`, `lead_activities` (append-only: o papel da aplicação só tem `SELECT, INSERT`), `proposals`; novas colunas `customers.broker_id` (corretor responsável) e índice único `brokers(tenant_id, user_id)`.
+- **Leads**: nome + telefone ou e-mail, origem, empreendimento de interesse, corretor. Situação `novo` → `em_contato` (automático ao registrar ligação/WhatsApp/e-mail/visita) → `qualificado`; `perdido` exige motivo e pode ser reaberto. **Converter** cria o comprador com os dados do lead (herda o corretor) ou liga a um comprador existente; lead convertido é final. Todas as mudanças ficam no histórico do lead.
+- **Propostas**: lote + comprador + condições (valor, entrada, parcelas, juros, Price/SAC, 1º vencimento) validadas pela **política de contratos** já na criação; validade padrão 7 dias (máx. 90). Proposta aberta não segura o lote — várias podem concorrer. **Aceitar** trava o lote e reserva para o cliente (ou usa a reserva ativa dele no lote) congelando o **valor negociado**; as condições aceitas pré-preenchem o contrato. `aberta` → `aceita` | `recusada` | `cancelada` | `expirada` (vencimento verificado ao listar/abrir/aceitar).
+- **Escopo do corretor** (`app/auth/scope.py`, hipótese da decisão 15): o perfil `corretor` precisa estar ligado a um cadastro de corretor ativo (`brokers.user_id`); vê e opera só os próprios leads, propostas e reservas e os compradores pelos quais responde (ou com quem tem lead/proposta/reserva). Atua sempre em nome próprio; fora do escopo a API responde 404. Sem acesso a contratos nem ao cadastro de corretores.
+- Permissões: `leads:view|manage` (owner/admin/comercial/corretor), `proposals:view` (+ financeiro), `proposals:manage` (owner/admin/comercial/corretor). Aceitar exige também `reservations:manage`; converter exige `customers:manage`.
+- Web: Leads (lista, filtros, cadastro, histórico, conversão), Propostas (lista e decisão), painel de propostas na tela do lote, contrato pré-preenchido pela proposta aceita e vínculo corretor ↔ usuário em Corretores.
 
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.

@@ -5,11 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.v1 import auth, commercial, contracts, developments, tenant
+from app.api.v1 import auth, commercial, contracts, crm, developments, tenant
 from app.core.config import get_settings
 from app.core.db import get_engine
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 log = logging.getLogger("imobil.api")
 
 settings = get_settings()
@@ -58,7 +58,7 @@ v1 = APIRouter(prefix="/api/v1")
 
 @v1.get("", tags=["meta"])
 def api_root() -> dict[str, str]:
-    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "2b"}
+    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "2c"}
 
 
 v1.include_router(auth.router)
@@ -66,4 +66,5 @@ v1.include_router(tenant.router)
 v1.include_router(developments.router)
 v1.include_router(commercial.router)
 v1.include_router(contracts.router)
+v1.include_router(crm.router)
 app.include_router(v1)

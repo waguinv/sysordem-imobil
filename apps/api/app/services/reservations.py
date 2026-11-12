@@ -11,6 +11,7 @@ Expiração: `expire_due` encerra reservas vencidas e libera o lote. É chamada 
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -105,7 +106,9 @@ def create(
     hours: int,
     actor: uuid.UUID,
     notes: str | None,
+    price: Decimal | None = None,
 ) -> Reservation:
+    """Reserva o lote. `price` congela um valor negociado (proposta aceita); padrão: preço de tabela."""
     if (
         db.scalar(select(Customer.id).where(Customer.id == customer_id, Customer.tenant_id == tenant_id))
         is None
@@ -131,7 +134,7 @@ def create(
         customer_id=customer_id,
         broker_id=broker_id,
         status=ACTIVE,
-        price=lot.price,
+        price=lot.price if price is None else price,
         expires_at=_now() + timedelta(hours=hours),
         notes=notes,
         created_by=actor,

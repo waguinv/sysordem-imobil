@@ -100,3 +100,48 @@ export const AMORTIZATION: Record<string, { label: string; hint: string }> = {
   price: { label: "Price", hint: "parcelas iguais" },
   sac: { label: "SAC", hint: "parcelas decrescentes" },
 };
+
+type BadgeVariant = "default" | "muted" | "warning" | "outline";
+
+export const LEAD_STATUS: Record<string, { label: string; badge: BadgeVariant }> = {
+  novo: { label: "Novo", badge: "outline" },
+  em_contato: { label: "Em contato", badge: "warning" },
+  qualificado: { label: "Qualificado", badge: "warning" },
+  convertido: { label: "Convertido", badge: "default" },
+  perdido: { label: "Perdido", badge: "muted" },
+};
+
+export const LEAD_SOURCE: Record<string, string> = {
+  site: "Site",
+  indicacao: "Indicação",
+  whatsapp: "WhatsApp",
+  telefone: "Telefone",
+  visita: "Visita ao estande",
+  redes_sociais: "Redes sociais",
+  outro: "Outro",
+};
+
+export const ACTIVITY_KIND: Record<string, string> = {
+  nota: "Anotação",
+  ligacao: "Ligação",
+  whatsapp: "WhatsApp",
+  email: "E-mail",
+  visita: "Visita",
+  status: "Sistema",
+};
+
+export const PROPOSAL_STATUS: Record<string, { label: string; badge: BadgeVariant }> = {
+  aberta: { label: "Aberta", badge: "warning" },
+  aceita: { label: "Aceita", badge: "default" },
+  recusada: { label: "Recusada", badge: "muted" },
+  cancelada: { label: "Cancelada", badge: "muted" },
+  expirada: { label: "Expirada", badge: "muted" },
+};
+
+/** "5% de desconto", "2% acima da tabela" ou "preço de tabela". */
+export function discountLabel(discountPct: string): string {
+  const d = Number(discountPct);
+  if (d === 0) return "preço de tabela";
+  const v = Math.abs(d).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  return d > 0 ? `${v}% de desconto` : `${v}% acima da tabela`;
+}

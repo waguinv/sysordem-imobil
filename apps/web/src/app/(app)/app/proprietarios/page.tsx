@@ -21,7 +21,7 @@ export default async function ProprietariosPage() {
           Donos das glebas dos empreendimentos. Dados pessoais visíveis só a perfis autorizados.
         </p>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
           <CardContent>
             {owners.length === 0 ? (

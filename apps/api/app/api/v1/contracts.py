@@ -10,8 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
-from app.auth.deps import AuthContext, require
-from app.auth.rbac import Perm
+from app.auth.deps import AuthContext, get_auth, require
+from app.auth.rbac import Perm, can
 from app.models import Block, Broker, ContractVersion, Customer, Development, Lot, SalesContract
 from app.services import contracts as svc
 from app.services import policy as policy_svc
@@ -300,7 +300,10 @@ def _policy_out(p: policy_svc.Policy) -> PolicyOut:
 
 
 @router.get("/settings/contract-policy", response_model=PolicyOut)
-def get_contract_policy(ctx: AuthContext = Depends(require(Perm.CONTRACTS_VIEW))) -> PolicyOut:
+def get_contract_policy(ctx: AuthContext = Depends(get_auth)) -> PolicyOut:
+    """Quem vê contratos ou propostas precisa dos padrões e limites (o corretor monta propostas)."""
+    if not (can(ctx.role, Perm.CONTRACTS_VIEW) or can(ctx.role, Perm.PROPOSALS_VIEW)):
+        raise HTTPException(status_code=403, detail="Sem permissão")
     return _policy_out(policy_svc.get_policy(ctx.db, ctx.tenant_id))
 
 

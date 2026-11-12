@@ -14,18 +14,39 @@ import { TermsFields } from "@/components/contracts/terms-fields";
 import { closeReservationAction, createReservationAction } from "@/lib/actions-fase2a";
 import { createContractAction } from "@/lib/actions-fase2b";
 import { brl, dateTime, RESERVATION_STATUS, timeLeft } from "@/lib/format";
-import { api, can, type Me } from "@/lib/session";
-import type { Broker, ContractPolicy, Customer, LotDetail, Reservation } from "@/lib/types";
+import { api, ApiError, can, type Me } from "@/lib/session";
+import type { Broker, ContractPolicy, Customer, LotDetail, Proposal, Reservation } from "@/lib/types";
 
 /** Reserva do lote: mostra a reserva ativa (cancelar / gerar contrato) ou o formulário para reservar. */
 export async function ReservationPanel({ lot, me }: { lot: LotDetail; me: Me }) {
   const manage = can(me, "reservations:manage");
 
   if (lot.active_reservation_id && can(me, "reservations:view")) {
-    const [r, policy] = await Promise.all([
-      api<Reservation>(`/reservations/${lot.active_reservation_id}`),
+    let r: Reservation;
+    try {
+      r = await api<Reservation>(`/reservations/${lot.active_reservation_id}`);
+    } catch (e) {
+      // Corretor só vê as próprias reservas: a de outro corretor aparece apenas como "lote reservado".
+      if (e instanceof ApiError && e.status === 404) {
+        return (
+          <Card className="border-lot-reservado/60">
+            <CardContent>
+              <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                <CalendarClock className="size-4 text-amber-600" /> Lote reservado para outro cliente.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      }
+      throw e;
+    }
+    const [policy, accepted] = await Promise.all([
       can(me, "contracts:manage") ? api<ContractPolicy>("/settings/contract-policy") : Promise.resolve(null),
+      can(me, "proposals:view")
+        ? api<Proposal[]>(`/proposals?reservation_id=${r.id}`)
+        : Promise.resolve([] as Proposal[]),
     ]);
+    const proposal = accepted[0];
     const st = RESERVATION_STATUS[r.status]!;
     return (
       <>
@@ -87,12 +108,36 @@ export async function ReservationPanel({ lot, me }: { lot: LotDetail; me: Me }) 
                 <CardDescription>
                   Cria o contrato em rascunho com estas condições. A reserva é encerrada e o lote fica preso
                   ao contrato até a assinatura.
+                  {proposal && (
+                    <>
+                      {" "}
+                      Condições preenchidas com a{" "}
+                      <Link href={`/app/propostas/${proposal.id}`} className="underline">
+                        proposta aceita
+                      </Link>
+                      .
+                    </>
+                  )}
                 </CardDescription>
               </div>
             </CardHeader>
             <CardContent>
               <ActionForm action={createContractAction.bind(null, r.id, lot.id)} submitLabel="Gerar contrato">
-                <TermsFields totalHint={brl(r.price)} policy={policy} />
+                <TermsFields
+                  totalHint={brl(r.price)}
+                  policy={policy}
+                  initial={
+                    proposal && {
+                      total_price: proposal.total_price,
+                      down_payment: proposal.down_payment,
+                      installments_count: proposal.installments_count,
+                      amortization: proposal.amortization,
+                      interest_monthly_pct: proposal.interest_monthly_pct,
+                      first_due_date: proposal.first_due_date,
+                      notes: proposal.notes,
+                    }
+                  }
+                />
               </ActionForm>
             </CardContent>
           </Card>
