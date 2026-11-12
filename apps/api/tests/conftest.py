@@ -117,7 +117,8 @@ def world(owner_engine) -> World:
     with owner_engine.begin() as c:
         c.execute(
             text(
-                "TRUNCATE webhook_events, charges, rescissions, renegotiations, participations, "
+                "TRUNCATE reconciliations, statement_lines, bank_statements, bank_accounts, "
+                "webhook_events, charges, rescissions, renegotiations, participations, "
                 "payable_events, payables, finance_settings, "
                 "payment_reversals, payments, installments, proposals, lead_activities, leads, "
                 "contract_policies, contract_versions, sales_contracts, tenant_counters, "

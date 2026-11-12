@@ -231,6 +231,21 @@ export const WEBHOOK_RESULT: Record<string, string> = {
   divergente: "Divergente",
 };
 
+// ── Fase 4b: conciliação ──
+
+export const LINE_STATUS: Record<string, { label: string; badge: BadgeVariant }> = {
+  pendente: { label: "Pendente", badge: "warning" },
+  conciliada: { label: "Conciliada", badge: "default" },
+  ignorada: { label: "Ignorada", badge: "muted" },
+};
+
+/** Link para o lançamento do sistema ligado à linha do extrato. */
+export function reconTargetHref(t: { kind: string; link_id: string }): string {
+  return t.kind === "recebimento"
+    ? `/app/financeiro/parcelas/${t.link_id}`
+    : `/app/financeiro/pagar/${t.link_id}`;
+}
+
 export const WEBHOOK_EVENT: Record<string, string> = {
   "charge.paid": "Pagamento confirmado",
   "charge.expired": "Cobrança expirada",

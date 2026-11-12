@@ -35,6 +35,7 @@ from app.models import (
 )
 from app.services import audit
 from app.services.finance import money
+from app.services.reconciliation import undo_for_payable
 
 BASES = ("recebimento", "assinatura")
 
@@ -349,6 +350,7 @@ def reverse_payable(
     pay.status, pay.paid_on, pay.method = "aberta", None, None
     _event(db, pay, "estorno", actor=actor, reason=reason)
     db.flush()
+    undo_for_payable(db, pay, reason=f"pagamento estornado: {reason}", actor=actor)  # Fase 4b
     audit.record(
         db,
         tenant_id=tenant_id,

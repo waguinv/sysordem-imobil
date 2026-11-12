@@ -98,6 +98,17 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Rotas: `/payment-providers`, `/charges` (+ `/summary`, `/{id}`, `/{id}/cancel`, `/{id}/resolve`, `/{id}/sandbox/simulate`), `/installments/{id}/charges`.
 - Web: painel "Cobrança Pix / boleto" na tela da parcela (emitir, copiar código, simular, cancelar), Financeiro → Cobranças Pix/boleto (resumo, filtros, divergências) e tela da cobrança com as notificações recebidas.
 
+## Implementado na Fase 4b — conciliação bancária
+- Tabelas (RLS + FKs compostas; migration `0011`): `bank_accounts` (só identificação, nunca credenciais), `bank_statements` (arquivo importado; o mesmo arquivo não entra duas vezes na conta), `statement_lines` (valor com sinal: + crédito, − débito; dedup por empresa + conta + id do lançamento no banco) e `reconciliations`. Append-only, exceto: contadores do extrato preenchidos na importação, colunas de "ignorar" da linha e colunas de "desfazer" da conciliação (`GRANT UPDATE` só nelas).
+- **Importação** (`app/services/bank_statement.py`): OFX 1.x (SGML) e 2.x (XML) — FITID do banco; CSV brasileiro — cabeçalho Data/Descrição(Histórico)/Valor ou Crédito+Débito, `;`/`,`/tab, dd/mm/aaaa, "1.234,56", linhas de título antes do cabeçalho e linhas "SALDO" puladas. Sem id no arquivo, o lançamento ganha um hash estável (data, valor, descrição, ocorrência). Extratos com períodos sobrepostos não duplicam linhas. Limite 2 MB / 5.000 lançamentos. O web decodifica UTF-8 ou Windows-1252.
+- **O que concilia com o quê**: crédito ↔ recebimentos (`payments` não estornados); débito ↔ pagamento de conta a pagar (evento "pagamento" sem estorno depois). Lançamentos em dinheiro ficam de fora. Uma linha pode juntar vários lançamentos (lote de boletos) se a soma bater **exatamente**; um lançamento só fica numa linha ativa (índices únicos parciais).
+- **Automática** (na importação e no botão): só quando a linha tem um único candidato de mesmo valor a até 3 dias e ele não é disputado por outra linha. O resto o financeiro confere na tela da linha, com sugestões (até 15 dias, exatos primeiro).
+- **Desfazer** (`finance:reverse`, com motivo) não apaga — marca a conciliação como desfeita e mantém o histórico. **Ignorar** (tarifa, transferência entre contas…) exige motivo e pode ser revertido. **Estorno** de recebimento ou de pagamento de conta desfaz a conciliação dele automaticamente (a linha volta a pendente).
+- Resumo por conta: pendentes (créditos/débitos), conciliadas, ignoradas e, em toda a empresa, recebimentos e pagamentos dos últimos 90 dias ainda sem extrato.
+- Rotas: `/bank-accounts` (+ `PATCH /{id}`, `/{id}/statements`, `/{id}/auto-reconcile`, `/{id}/reconciliation-summary`), `/statement-lines` (+ `/{id}`, `/{id}/candidates`, `/{id}/reconcile`, `/{id}/undo`, `/{id}/ignore`, `/{id}/unignore`). Permissões: ver `finance:view`; importar/conciliar/ignorar `finance:manage`; desfazer `finance:reverse`.
+- Web: Financeiro → Conciliação bancária (contas, resumo, importar, conciliar automaticamente, lista com filtros) e tela da linha (candidatos com seleção múltipla, ignorar, desfazer, histórico).
+- **Limitações**: valor líquido de tarifa do PSP (crédito menor que o recebimento) ainda não casa sozinho — concilia-se à mão só se houver lançamento com o valor exato; sem conexão direta com o banco (Open Finance/API de extrato) — o arquivo vem do internet banking.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.
