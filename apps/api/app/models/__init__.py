@@ -7,9 +7,21 @@ Regras:
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -82,4 +94,84 @@ class AuditEvent(Base):
     data: Mapped[dict[str, Any]] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"), default=dict, nullable=False
     )
+    created_at: Mapped[datetime] = _created_at()
+
+
+# ───────────────────────── Fase 1: empreendimentos, quadras e lotes ─────────────────────────
+
+
+class LandOwner(Base):
+    """Proprietário da área (dados pessoais: visíveis só a perfis com owners:view)."""
+
+    __tablename__ = "land_owners"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    document: Mapped[str | None] = mapped_column(String(20))  # CPF/CNPJ só dígitos
+    email: Mapped[str | None] = mapped_column(String(254))
+    phone: Mapped[str | None] = mapped_column(String(30))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Development(Base):
+    __tablename__ = "developments"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    city: Mapped[str | None] = mapped_column(String(120))
+    state: Mapped[str | None] = mapped_column(String(2))
+    address: Mapped[str | None] = mapped_column(String(240))
+    description: Mapped[str | None] = mapped_column(Text)
+    land_owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Block(Base):
+    """Quadra."""
+
+    __tablename__ = "blocks"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    development_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    code: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class Lot(Base):
+    __tablename__ = "lots"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    development_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    block_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    number: Mapped[str] = mapped_column(String(20), nullable=False)
+    area_m2: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    front_m: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
+    price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="disponivel")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    notes: Mapped[str | None] = mapped_column(Text)
+    # GeoJSON (Polygon) opcional para a planta georreferenciada — formato da planta ainda a definir
+    geometry: Mapped[dict[str, Any] | None] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class LotStatusHistory(Base):
+    """Histórico de status (append-only)."""
+
+    __tablename__ = "lot_status_history"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    lot_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    from_status: Mapped[str | None] = mapped_column(String(20))
+    to_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()

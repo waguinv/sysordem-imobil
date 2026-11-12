@@ -6,6 +6,15 @@
 - `apps/api/tests/test_unit_security.py`: Argon2id, JWT (assinatura, expiração, `alg=none`), matriz RBAC.
 - `apps/web/tests/nav.test.ts`: menu filtrado por permissão.
 
+## Implementado (Fase 1) — `apps/api/tests/test_fase1.py`
+- Cadastro de empreendimento, quadras (ordenação natural) e lotes em lote; mapa e resumo (estoque disponível em Decimal exato).
+- Decimal: preço `0.30` exato; 3 casas decimais rejeitadas.
+- Isolamento: tenant B não vê/edita empreendimento, mapa, lote, histórico de A; não anexa lote a quadra de A; FK composta bloqueia referência cruzada mesmo direto no banco; RLS esconde as 5 tabelas sem contexto; histórico append-only.
+- RBAC: leitura/corretor só visualizam; comercial muda status mas não edita catálogo; dados de proprietários só para owner/admin/financeiro.
+- Status: fluxo reservado → vendido com histórico (ator e motivo) e auditoria; saída de vendido negada; preço de vendido imutável; versão desatualizada → 409.
+- **Concorrência**: duas transações simultâneas vendendo o mesmo lote → exatamente uma vence, um único registro "vendido" no histórico.
+- `tests/test_db_dependency.py`: COMMIT antes da resposta (regressão).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

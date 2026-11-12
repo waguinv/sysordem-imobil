@@ -11,6 +11,17 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Web: BFF Next.js (token em cookie httpOnly; chamadas à API pelo servidor), login, shell com menu por permissão, painel e equipe.
 - Detalhes de segurança em [SEGURANCA.md](SEGURANCA.md).
 
+## Implementado na Fase 1
+- Tabelas (todas com `tenant_id` + RLS): `land_owners`, `developments`, `blocks` (quadras), `lots`, `lot_status_history` (append-only). Migration `0002`.
+- **FKs compostas `(tenant_id, id)`**: checagens de chave estrangeira ignoram RLS; sem a FK composta, um registro do tenant A poderia apontar para uma linha do tenant B cujo id fosse conhecido.
+- Dinheiro e área em `NUMERIC` (`price` 14,2; `area_m2` 12,2) e `Decimal`; o JSON trafega strings decimais e o web só converte para exibir.
+- Status de lote: `disponivel`, `reservado`, `vendido`, `bloqueado`. Transições (Fase 1, manuais): disponível → reservado/vendido/bloqueado; reservado → disponível/vendido; bloqueado → disponível; vendido → (só distrato, Fase 3). Preço de lote vendido é imutável.
+- **Concorrência**: mudança de status e edição usam `SELECT … FOR UPDATE` + versão esperada (`expected_version`). A segunda requisição simultânea recebe 409 — testado com duas transações reais em paralelo.
+- Rotas: `/land-owners`, `/developments` (+ `/{id}`, `/{id}/map`, `/{id}/blocks`, `/{id}/lots`, `/{id}/lots/batch`), `/lots/{id}` (+ `/status`, `/history`).
+- Permissões novas: `developments:view` (todos), `developments:manage` (owner/admin), `lots:status` (owner/admin/comercial), `owners:view` (owner/admin/financeiro), `owners:manage` (owner/admin).
+- Web: lista de empreendimentos, cadastro, mapa esquemático por quadra (grade responsiva, cores de status SysOrdem), detalhe do lote com mudança de status, edição e histórico, proprietários (documento mascarado na tela).
+- Mapa: esquemático por quadra/número. O campo `lots.geometry` (GeoJSON) fica reservado para a planta georreferenciada quando o formato da planta for definido (ver DECISOES_PENDENTES.md).
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

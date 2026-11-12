@@ -40,8 +40,29 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: { ...init.headers, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });
   if (res.status === 401) redirect("/entrar?expirada=1");
-  if (!res.ok) throw new ApiError(res.status, `API ${res.status} em ${path}`);
+  if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** Mensagem legível a partir do corpo de erro do FastAPI (detail string ou lista de validação). */
+async function errorMessage(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    if (typeof body.detail === "string") return body.detail;
+    if (Array.isArray(body.detail)) {
+      return body.detail
+        .map((d: { loc?: unknown[]; msg?: string }) => `${String(d.loc?.at(-1) ?? "")}: ${d.msg ?? ""}`)
+        .join("; ");
+    }
+  } catch {
+    /* corpo não-JSON */
+  }
+  return `Erro ${res.status}`;
+}
+
+export function can(me: Me, permission: string): boolean {
+  return me.permissions.includes(permission);
 }
 
 export function getMe(): Promise<Me> {

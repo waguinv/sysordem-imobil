@@ -20,17 +20,24 @@ class Perm(StrEnum):
     MEMBERS_VIEW = "members:view"
     MEMBERS_MANAGE = "members:manage"
     AUDIT_VIEW = "audit:view"
+    DEVELOPMENTS_VIEW = "developments:view"
+    DEVELOPMENTS_MANAGE = "developments:manage"
+    LOTS_STATUS = "lots:status"
+    OWNERS_VIEW = "owners:view"
+    OWNERS_MANAGE = "owners:manage"
 
 
 _ALL = frozenset(Perm)
 
+_BASE = frozenset({Perm.TENANT_VIEW, Perm.DEVELOPMENTS_VIEW})
+
 MATRIX: dict[Role, frozenset[Perm]] = {
     Role.OWNER: _ALL,
     Role.ADMIN: _ALL,
-    Role.FINANCEIRO: frozenset({Perm.TENANT_VIEW, Perm.MEMBERS_VIEW, Perm.AUDIT_VIEW}),
-    Role.COMERCIAL: frozenset({Perm.TENANT_VIEW, Perm.MEMBERS_VIEW}),
-    Role.CORRETOR: frozenset({Perm.TENANT_VIEW}),
-    Role.LEITURA: frozenset({Perm.TENANT_VIEW}),
+    Role.FINANCEIRO: _BASE | {Perm.MEMBERS_VIEW, Perm.AUDIT_VIEW, Perm.OWNERS_VIEW},
+    Role.COMERCIAL: _BASE | {Perm.MEMBERS_VIEW, Perm.LOTS_STATUS},
+    Role.CORRETOR: _BASE,
+    Role.LEITURA: _BASE,
 }
 
 ROLE_LABEL: dict[Role, str] = {

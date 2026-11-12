@@ -24,6 +24,12 @@ Revogar um vínculo invalida tokens já emitidos na próxima requisição. Cabe�
 - Tabelas globais sem RLS: `tenants` (apenas SELECT para o papel da aplicação) e `users` (um usuário pode pertencer a várias empresas; nunca expor listagem global).
 - Toda nova tabela de negócio deve: ter `tenant_id NOT NULL`, receber a mesma política na migration e ganhar teste de isolamento.
 
+## Sessão de banco e COMMIT
+A dependência `get_db` é declarada com `Depends(get_db, scope="function")` (`DB_DEPENDS`). No FastAPI ≥ 0.118 o código após o `yield` roda por padrão **depois** de a resposta ser enviada: o cliente receberia 201 antes do COMMIT (leitura desatualizada logo em seguida e "sucesso" mesmo se o COMMIT falhar). `tests/test_db_dependency.py` impede regressão.
+
+## Integridade entre tenants
+Além do RLS, as FKs entre tabelas de negócio são compostas `(tenant_id, id)`, porque checagens de FK não passam pelo RLS. Rotas validam o pai (empreendimento, quadra, proprietário) com filtro de tenant e devolvem 404 quando ele é de outra empresa.
+
 ## RBAC
 Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `leitura`. A matriz fica em `app/auth/rbac.py`; rotas exigem **permissões** (`require(Perm.X)`), nunca perfis. Só `owner` cria/altera outro `owner`; ninguém altera o próprio vínculo.
 
