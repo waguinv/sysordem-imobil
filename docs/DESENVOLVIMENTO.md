@@ -14,8 +14,10 @@ Em outro terminal, crie o papel da aplicação e o banco (uma vez):
 ```bash
 cd apps/api
 python -m venv .venv && .venv/Scripts/pip install -r requirements-dev.txt   # Linux/macOS: .venv/bin/
-.venv/Scripts/python -c "from sqlalchemy import create_engine,text; e=create_engine('postgresql+psycopg://imobil_owner:<senha-local>@127.0.0.1:55432/postgres',isolation_level='AUTOCOMMIT'); c=e.connect(); c.execute(text(\"CREATE ROLE imobil_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '<senha-app>'\")); c.execute(text('CREATE DATABASE imobil'))"
+.venv/Scripts/python -c "from sqlalchemy import create_engine,text; e=create_engine('postgresql+psycopg://imobil_owner:<senha-local>@127.0.0.1:55432/postgres',isolation_level='AUTOCOMMIT'); c=e.connect(); c.execute(text(\"CREATE ROLE imobil_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '<senha-app>'\")); c.execute(text(\"CREATE DATABASE imobil ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0\"))"
 ```
+
+> O banco precisa ser **UTF-8** (o `/ready` recusa outra codificação). No Windows, o `initdb` usaria WIN1252 por padrão; o `pg-local` já inicializa em UTF-8.
 
 ## 2. Migrations e dados fictícios
 ```bash
@@ -52,7 +54,7 @@ No Claude Code (desktop), `.claude/launch.json` já define as configurações `a
 ```bash
 cd apps/api
 TEST_ADMIN_DATABASE_URL=postgresql+psycopg://imobil_owner:<senha-local>@127.0.0.1:55432/postgres \
-  .venv/Scripts/python -m pytest          # 48 testes; sem a variável, os testes de banco são pulados
+  .venv/Scripts/python -m pytest          # 67 testes; sem a variável, os testes de banco são pulados
 .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check . && .venv/Scripts/mypy
 
 cd apps/web

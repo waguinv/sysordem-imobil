@@ -12,11 +12,19 @@ type Props = {
   className?: string;
   /** limpa os campos depois de salvar com sucesso */
   resetOnSuccess?: boolean;
+  submitVariant?: "default" | "outline" | "destructive" | "institutional";
   children: React.ReactNode;
 };
 
 /** Formulário com Server Action, estado de envio e mensagem de erro/sucesso no padrão SysOrdem. */
-export function ActionForm({ action, submitLabel, className, resetOnSuccess, children }: Props) {
+export function ActionForm({
+  action,
+  submitLabel,
+  className,
+  resetOnSuccess,
+  submitVariant,
+  children,
+}: Props) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -35,7 +43,7 @@ export function ActionForm({ action, submitLabel, className, resetOnSuccess, chi
           {state.ok}
         </p>
       )}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} variant={submitVariant}>
         {pending && <Loader2 className="animate-spin" />} {submitLabel}
       </Button>
     </form>

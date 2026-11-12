@@ -14,7 +14,15 @@ if (!password) {
   process.exit(1);
 }
 
-const pg = new EmbeddedPostgres({ databaseDir: dataDir, user: "imobil_owner", password, port, persistent: true });
+// UTF-8 obrigatório (no Windows o padrão do initdb seria WIN1252).
+const pg = new EmbeddedPostgres({
+  databaseDir: dataDir,
+  user: "imobil_owner",
+  password,
+  port,
+  persistent: true,
+  initdbFlags: ["--encoding=UTF8", "--locale=C"],
+});
 if (!existsSync(join(dataDir, "PG_VERSION"))) await pg.initialise();
 await pg.start();
 console.log(`PostgreSQL local em 127.0.0.1:${port} (superusuário imobil_owner). Ctrl+C para parar.`);

@@ -22,6 +22,10 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # Validade padrão da reserva de lote (hipótese: 72 h; configurável por empresa em fase futura)
+    reservation_default_hours: int = 72
+    reservation_max_hours: int = 720
+
     login_max_failures: int = 5
     login_window_seconds: int = 900
 

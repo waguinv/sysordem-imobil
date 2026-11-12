@@ -5,11 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.v1 import auth, developments, tenant
+from app.api.v1 import auth, commercial, developments, tenant
 from app.core.config import get_settings
 from app.core.db import get_engine
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 log = logging.getLogger("imobil.api")
 
 settings = get_settings()
@@ -41,11 +41,15 @@ def ready() -> dict[str, str]:
         with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
             revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            encoding = conn.execute(text("SHOW server_encoding")).scalar()
     except SQLAlchemyError:
         log.warning("readiness: banco indisponível")
         raise HTTPException(status_code=503, detail="database unavailable") from None
     if not revision:
         raise HTTPException(status_code=503, detail="migrations pending")
+    if encoding != "UTF8":
+        # JSONB e acentos exigem UTF-8 (o driver decodifica JSON como UTF-8).
+        raise HTTPException(status_code=503, detail=f"database encoding must be UTF8 (got {encoding})")
     return {"status": "ready", "database": "reachable", "revision": str(revision)}
 
 
@@ -54,10 +58,11 @@ v1 = APIRouter(prefix="/api/v1")
 
 @v1.get("", tags=["meta"])
 def api_root() -> dict[str, str]:
-    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "1"}
+    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "2a"}
 
 
 v1.include_router(auth.router)
 v1.include_router(tenant.router)
 v1.include_router(developments.router)
+v1.include_router(commercial.router)
 app.include_router(v1)

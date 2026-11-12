@@ -14,6 +14,9 @@ Sem Docker: ver [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md).
 
 Atenção: `docker compose down -v` apaga o volume de dados local.
 
+## Tarefas agendadas
+- `python -m scripts.expire_reservations` a cada ~5 minutos (mesmas variáveis da API). Ex.: `docker compose run --rm api python -m scripts.expire_reservations` via cron/agendador.
+
 ## Checklist de produção
 - Segredos em secret manager/variáveis protegidas, nunca as senhas de exemplo.
 - HTTPS, domínio e DNS; banco em rede privada.

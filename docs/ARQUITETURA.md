@@ -22,6 +22,17 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Web: lista de empreendimentos, cadastro, mapa esquemático por quadra (grade responsiva, cores de status SysOrdem), detalhe do lote com mudança de status, edição e histórico, proprietários (documento mascarado na tela).
 - Mapa: esquemático por quadra/número. O campo `lots.geometry` (GeoJSON) fica reservado para a planta georreferenciada quando o formato da planta for definido (ver DECISOES_PENDENTES.md).
 
+## Implementado na Fase 2a
+- Tabelas (RLS + FKs compostas): `customers` (CPF/CNPJ único por empresa), `brokers` (ativo/inativo, `user_id` opcional), `reservations` (sem DELETE; encerra por status). Migration `0003`.
+- **Reserva** (`app/services/reservations.py`): trava o lote (`FOR UPDATE`), exige "disponível", grava o **preço do momento** e a validade (padrão 72 h, máx. 720 h — `RESERVATION_DEFAULT_HOURS`/`RESERVATION_MAX_HOURS`). Status: `ativa` → `convertida` | `cancelada` | `expirada`.
+- **Barreira no banco** contra reserva dupla: índice único parcial `reservations(lot_id) WHERE status='ativa'`.
+- "Reservado" só nasce de uma reserva; lote com reserva ativa não muda de status manualmente (sai cancelando, convertendo ou expirando).
+- **Expiração**: sob demanda (ao abrir mapa, lote, reserva e lista) e pelo job `python -m scripts.expire_reservations` (agendar a cada ~5 min). Expiração libera o lote com histórico "reserva expirada" (ator: sistema).
+- "Converter em venda" marca o lote como vendido; na Fase 2b passará a gerar o contrato.
+- Rotas: `/customers`, `/brokers`, `/reservations` (+ `/{id}`, `/{id}/cancel`, `/{id}/convert`).
+- Permissões: `customers:view|manage`, `brokers:view|manage`, `reservations:view|manage`. Comercial reserva e cadastra compradores; financeiro só consulta; corretor e leitura ainda sem acesso (escopo "só meus clientes" na Fase 2b).
+- Web: Compradores (busca, documento mascarado), Corretores (ativar/desativar), Reservas (filtros, prazo restante) e painel de reserva na tela do lote.
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.

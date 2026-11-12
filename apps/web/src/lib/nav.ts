@@ -49,10 +49,10 @@ export const NAV: NavEntry[] = [
     title: "Comercial",
     icon: UsersRound,
     items: [
-      { title: "Leads e CRM", href: "/app/crm", permission: "tenant:view", soon: "Fase 2" },
-      { title: "Compradores", href: "/app/compradores", permission: "tenant:view", soon: "Fase 2" },
-      { title: "Corretores", href: "/app/corretores", permission: "tenant:view", soon: "Fase 2" },
-      { title: "Propostas e reservas", href: "/app/reservas", permission: "tenant:view", soon: "Fase 2" },
+      { title: "Reservas", href: "/app/reservas", permission: "reservations:view" },
+      { title: "Compradores", href: "/app/compradores", permission: "customers:view" },
+      { title: "Corretores", href: "/app/corretores", permission: "brokers:view" },
+      { title: "Leads e propostas", href: "/app/crm", permission: "tenant:view", soon: "Fase 2b" },
     ],
   },
   {
@@ -60,7 +60,7 @@ export const NAV: NavEntry[] = [
     href: "/app/contratos",
     icon: FileSignature,
     permission: "tenant:view",
-    soon: "Fase 2",
+    soon: "Fase 2b",
   },
   {
     title: "Financeiro",

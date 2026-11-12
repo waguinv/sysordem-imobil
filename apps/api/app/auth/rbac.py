@@ -25,6 +25,12 @@ class Perm(StrEnum):
     LOTS_STATUS = "lots:status"
     OWNERS_VIEW = "owners:view"
     OWNERS_MANAGE = "owners:manage"
+    CUSTOMERS_VIEW = "customers:view"
+    CUSTOMERS_MANAGE = "customers:manage"
+    BROKERS_VIEW = "brokers:view"
+    BROKERS_MANAGE = "brokers:manage"
+    RESERVATIONS_VIEW = "reservations:view"
+    RESERVATIONS_MANAGE = "reservations:manage"
 
 
 _ALL = frozenset(Perm)
@@ -34,8 +40,26 @@ _BASE = frozenset({Perm.TENANT_VIEW, Perm.DEVELOPMENTS_VIEW})
 MATRIX: dict[Role, frozenset[Perm]] = {
     Role.OWNER: _ALL,
     Role.ADMIN: _ALL,
-    Role.FINANCEIRO: _BASE | {Perm.MEMBERS_VIEW, Perm.AUDIT_VIEW, Perm.OWNERS_VIEW},
-    Role.COMERCIAL: _BASE | {Perm.MEMBERS_VIEW, Perm.LOTS_STATUS},
+    Role.FINANCEIRO: _BASE
+    | {
+        Perm.MEMBERS_VIEW,
+        Perm.AUDIT_VIEW,
+        Perm.OWNERS_VIEW,
+        Perm.CUSTOMERS_VIEW,
+        Perm.BROKERS_VIEW,
+        Perm.RESERVATIONS_VIEW,
+    },
+    Role.COMERCIAL: _BASE
+    | {
+        Perm.MEMBERS_VIEW,
+        Perm.LOTS_STATUS,
+        Perm.CUSTOMERS_VIEW,
+        Perm.CUSTOMERS_MANAGE,
+        Perm.BROKERS_VIEW,
+        Perm.RESERVATIONS_VIEW,
+        Perm.RESERVATIONS_MANAGE,
+    },
+    # Corretor: acesso a compradores/reservas só dos próprios clientes chega na Fase 2b (escopo por corretor).
     Role.CORRETOR: _BASE,
     Role.LEITURA: _BASE,
 }

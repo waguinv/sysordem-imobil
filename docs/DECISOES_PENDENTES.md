@@ -11,3 +11,6 @@
 10. Domínio do site e provedores de e-mail/WhatsApp/assinatura eletrônica.
 11. Confirmar as transições de status de lote adotadas na Fase 1 (ver ARQUITETURA.md) e quem pode vender sem reserva prévia.
 12. Proprietário da área: um por empreendimento (adotado) ou vários com participação percentual?
+13. Validade padrão da reserva (adotado: 72 h; máx. 30 dias) — confirmar e definir se varia por empreendimento.
+14. Reserva exige sinal/pagamento? Hoje é só bloqueio com prazo; sinal entra com o financeiro (Fase 3).
+15. Corretor deve ver/reservar só os próprios clientes (proposta para a Fase 2b) ou todos os lotes/clientes da empresa?

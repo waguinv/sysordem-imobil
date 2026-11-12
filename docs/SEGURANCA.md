@@ -30,6 +30,9 @@ A dependência `get_db` é declarada com `Depends(get_db, scope="function")` (`D
 ## Integridade entre tenants
 Além do RLS, as FKs entre tabelas de negócio são compostas `(tenant_id, id)`, porque checagens de FK não passam pelo RLS. Rotas validam o pai (empreendimento, quadra, proprietário) com filtro de tenant e devolvem 404 quando ele é de outra empresa.
 
+## Codificação do banco
+O banco deve ser **UTF-8** (`/ready` responde 503 caso contrário): o driver decodifica JSONB como UTF-8 e um banco WIN1252 (padrão do `initdb` no Windows) quebra a leitura da auditoria com acentos. Testes e `tools/pg-local` criam bancos em UTF-8.
+
 ## RBAC
 Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `leitura`. A matriz fica em `app/auth/rbac.py`; rotas exigem **permissões** (`require(Perm.X)`), nunca perfis. Só `owner` cria/altera outro `owner`; ninguém altera o próprio vínculo.
 

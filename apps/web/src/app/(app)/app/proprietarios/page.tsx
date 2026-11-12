@@ -3,16 +3,11 @@ import { redirect } from "next/navigation";
 import { ActionForm, Field } from "@/components/ui/action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/components/ui/primitives";
 import { createLandOwnerAction } from "@/lib/actions-fase1";
+import { maskDoc } from "@/lib/format";
 import { api, can, getMe } from "@/lib/session";
 import type { LandOwner } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Proprietários da área" };
-
-/** Mostra só os 3 últimos dígitos do documento (minimização de dados na tela). */
-function maskDoc(d: string | null): string {
-  if (!d) return "—";
-  return `${d.length === 11 ? "CPF" : "CNPJ"} •••${d.slice(-3)}`;
-}
 
 export default async function ProprietariosPage() {
   const me = await getMe();

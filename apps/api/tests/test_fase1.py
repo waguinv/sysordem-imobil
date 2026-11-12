@@ -205,7 +205,7 @@ def test_comercial_changes_status_but_cannot_edit_catalog(client, setup_a):
     r = client.post(
         f"{API}/lots/{lot['id']}/status",
         headers=dave,
-        json={"to_status": "reservado", "expected_version": 1, "reason": "cliente interessado"},
+        json={"to_status": "bloqueado", "expected_version": 1, "reason": "aguardando vistoria"},
     )
     assert r.status_code == 200, r.text
     assert (
@@ -266,34 +266,47 @@ def test_status_flow_history_and_audit(client, setup_a):
     s = setup_a
     lot = s["lots"][0]
     url = f"{API}/lots/{lot['id']}/status"
+    h = s["h"]
+    # desde a Fase 2a, "reservado" só via reserva (com comprador e validade)
+    r = client.post(url, headers=h, json={"to_status": "reservado", "expected_version": 1, "reason": "sinal"})
+    assert r.status_code == 422
+    assert client.get(f"{API}/lots/{lot['id']}", headers=h).json()["allowed_transitions"] == [
+        "bloqueado",
+        "vendido",
+    ]
     r = client.post(
-        url, headers=s["h"], json={"to_status": "reservado", "expected_version": 1, "reason": "sinal"}
+        url, headers=h, json={"to_status": "bloqueado", "expected_version": 1, "reason": "vistoria"}
     )
-    assert r.json()["status"] == "reservado" and r.json()["version"] == 2
-    assert r.json()["allowed_transitions"] == ["disponivel", "vendido"]
+    assert r.json()["status"] == "bloqueado" and r.json()["version"] == 2
+    assert r.json()["allowed_transitions"] == ["disponivel"]
     r = client.post(
-        url, headers=s["h"], json={"to_status": "vendido", "expected_version": 2, "reason": "contrato"}
+        url, headers=h, json={"to_status": "disponivel", "expected_version": 2, "reason": "liberado"}
+    )
+    assert r.status_code == 200
+    r = client.post(
+        url, headers=h, json={"to_status": "vendido", "expected_version": 3, "reason": "contrato"}
     )
     assert r.json()["status"] == "vendido"
     assert r.json()["allowed_transitions"] == []
 
     # saída de "vendido" só por distrato (Fase 3)
     r = client.post(
-        url, headers=s["h"], json={"to_status": "disponivel", "expected_version": 3, "reason": "voltar"}
+        url, headers=s["h"], json={"to_status": "disponivel", "expected_version": 4, "reason": "voltar"}
     )
     assert r.status_code == 422
     # preço de lote vendido é imutável
     r = client.patch(
         f"{API}/lots/{lot['id']}",
         headers=s["h"],
-        json={"price": "1.00", "expected_version": 3, "reason": "desconto"},
+        json={"price": "1.00", "expected_version": 4, "reason": "desconto"},
     )
     assert r.status_code == 409
 
     hist = client.get(f"{API}/lots/{lot['id']}/history", headers=s["h"]).json()
     assert [(h["from_status"], h["to_status"]) for h in hist] == [
-        ("reservado", "vendido"),
-        ("disponivel", "reservado"),
+        ("disponivel", "vendido"),
+        ("bloqueado", "disponivel"),
+        ("disponivel", "bloqueado"),
         (None, "disponivel"),
     ]
     assert hist[0]["reason"] == "contrato" and hist[0]["actor_name"] == "Alice"

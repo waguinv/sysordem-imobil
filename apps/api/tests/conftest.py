@@ -57,7 +57,13 @@ def database() -> Iterator[None]:
         exists = c.execute(text("SELECT 1 FROM pg_roles WHERE rolname = :r"), {"r": APP_ROLE}).scalar()
         verb = "ALTER" if exists else "CREATE"
         c.execute(text(f"{verb} ROLE {APP_ROLE} LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '{APP_PASSWORD}'"))
-        c.execute(text(f'CREATE DATABASE "{TEST_DB}"'))
+        # UTF-8 explícito: no Windows o padrão do initdb é WIN1252 e o driver lê JSONB como UTF-8.
+        c.execute(
+            text(
+                f"CREATE DATABASE \"{TEST_DB}\" ENCODING 'UTF8' "
+                "LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0"
+            )
+        )
     admin.dispose()
     subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"], cwd=API_DIR, check=True, env={**os.environ}
