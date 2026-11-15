@@ -78,7 +78,27 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'staging' }}
     steps:
+      # Sem servidor cadastrado no environment: no push à main só avisa (as imagens já foram publicadas);
+      # num disparo manual é erro, porque alguém pediu um deploy que não tem para onde ir.
+      - name: Servidor configurado?
+        id: cfg
+        env:
+          HOST: ${{ vars.DEPLOY_HOST }}
+          HAS_KEY: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+          HAS_KNOWN: ${{ secrets.DEPLOY_KNOWN_HOSTS != '' }}
+          ENV_NAME: ${{ github.event.inputs.environment || 'staging' }}
+        run: |
+          missing=()
+          [ -n "$HOST" ] || missing+=("variável DEPLOY_HOST")
+          [ "$HAS_KEY" = "true" ] || missing+=("segredo DEPLOY_SSH_KEY")
+          [ "$HAS_KNOWN" = "true" ] || missing+=("segredo DEPLOY_KNOWN_HOSTS")
+          if [ ${#missing[@]} -eq 0 ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          msg="Deploy em $ENV_NAME não configurado: falta ${missing[*]} (ver docs/CI_CD.md)"
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then echo "::error::$msg"; exit 1; fi
+          echo "::warning::$msg — imagens publicadas, deploy pulado"
       - name: Tag a implantar
+        if: steps.cfg.outputs.ready == 'true'
         id: tag
         env:
           INPUT_TAG: ${{ github.event.inputs.image_tag }}
@@ -91,6 +111,7 @@ jobs:
           [[ "$tag" =~ ^[A-Za-z0-9._-]{1,128}$ ]] || { echo "tag inválida: $tag"; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: SSH
+        if: steps.cfg.outputs.ready == 'true'
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -100,6 +121,7 @@ jobs:
           # host conhecido fixado no secret: nada de aceitar a chave na primeira conexão
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
       - name: Deploy
+        if: steps.cfg.outputs.ready == 'true'
         env:
           HOST: ${{ vars.DEPLOY_HOST }}
           USER_: ${{ vars.DEPLOY_USER }}
