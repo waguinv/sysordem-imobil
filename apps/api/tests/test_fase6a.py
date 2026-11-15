@@ -196,3 +196,20 @@ def test_openapi_hidden_in_production(monkeypatch):
         monkeypatch.undo()
         config_mod.get_settings.cache_clear()
         importlib.reload(main_mod)
+
+
+def test_sql_parameters_hidden_outside_dev(monkeypatch):
+    import app.core.config as config_mod
+    import app.core.db as db_mod
+
+    monkeypatch.setenv("ENVIRONMENT", "staging")
+    config_mod.get_settings.cache_clear()
+    db_mod.get_engine.cache_clear()
+    try:
+        assert db_mod.get_engine().hide_parameters is True
+    finally:
+        db_mod.get_engine().dispose()
+        monkeypatch.undo()
+        config_mod.get_settings.cache_clear()
+        db_mod.get_engine.cache_clear()
+    assert db_mod.get_engine().hide_parameters is False

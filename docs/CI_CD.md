@@ -13,6 +13,7 @@ Rollback: mesmo workflow com "rollback" marcado (sem tag = volta para a anterior
 |---|---|
 | `api` | ruff (lint + formato), mypy, pytest com PostgreSQL real (RLS), **migrations ida e volta** (`scripts/check_migrations.py`: upgrade → downgrade base → upgrade, sem tabelas órfãs e com RLS forçado em toda tabela com `tenant_id`), **pip-audit** |
 | `web` | ESLint, tsc, Vitest, build de produção, **npm audit** (dependências de produção, nível alto+) |
+| `drill` | pilha real do Compose: carga + corrida de reservas (`scripts/load_test.py`), `deploy/backup.sh`, `deploy/restore.sh` num banco novo e `scripts/verify_restore.py` (linhas, hashes, RLS) |
 | `infra` | **gitleaks** (segredos no histórico), **shellcheck** dos scripts, `docker compose config` (dev, perfil assinatura e deploy), build das imagens e **Trivy** (CVEs críticas com correção disponível) |
 
 Proteja a `main` no GitHub (Settings ▸ Branches): exigir PR, os três jobs verdes e branch atualizada.
@@ -73,4 +74,5 @@ Em cada environment:
 `BACKUP_KEEP_DAYS` (14) e cópia externa opcional via rclone (`BACKUP_RCLONE_REMOTE`). Agende diariamente (cron do
 servidor), por exemplo `15 3 * * * cd /opt/sysordem-imobil && deploy/backup.sh >> /var/log/imobil-backup.log 2>&1`.
 `deploy/restore.sh <arquivo>` restaura num banco novo `imobil_restore_<data>` e confere revisão e empresas.
-O teste periódico de restauração entra na Fase 6b.
+A restauração é testada a cada PR no job `drill` do CI (backup → restore → conferência linha a linha e do RLS com
+`scripts/verify_restore.py`) — ver [REVISAO_SEGURANCA.md](REVISAO_SEGURANCA.md).

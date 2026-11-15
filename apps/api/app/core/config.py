@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     db_connect_timeout_seconds: int = 5
     db_pool_timeout_seconds: float = 10.0
+    # Por processo. Deve cobrir as threads que atendem requisições ao mesmo tempo (Fase 6b: 5+10 limitava
+    # a carga). Some todos os processos/réplicas e confira com max_connections do PostgreSQL.
+    db_pool_size: int = 20
+    db_max_overflow: int = 10
 
     @field_validator("jwt_secret")
     @classmethod

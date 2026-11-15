@@ -93,6 +93,8 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 - Containers da API e do web: usuário sem privilégio, `no-new-privileges`, `cap_drop: ALL`, healthcheck.
 - CI: pip-audit, npm audit, gitleaks, Trivy e shellcheck — ver [CI_CD.md](CI_CD.md).
 
+Revisão consolidada, riscos em aberto e o que falta da revisão profissional: [REVISAO_SEGURANCA.md](REVISAO_SEGURANCA.md).
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.

@@ -12,7 +12,9 @@ SaaS multiempresa para gestão de loteamentos de terrenos e chácaras: empreendi
 > suspensão por atraso).
 > **Fase 6a:** cabeçalhos de segurança, CSP com nonce, limites de corpo/taxa, logs estruturados, travas de
 > configuração de produção, CI com auditoria de dependências/segredos/imagens e deploy com staging, backup e rollback
-> ([docs/CI_CD.md](docs/CI_CD.md)).
+> ([docs/CI_CD.md](docs/CI_CD.md)). **Fase 6b:** restauração de backup conferida no CI, teste de carga e de
+> concorrência e autorrevisão de segurança ([docs/REVISAO_SEGURANCA.md](docs/REVISAO_SEGURANCA.md)) — pentest e
+> revisões profissionais ainda pendentes.
 > Ainda **não** há PSP real (Fase 4c), console do operador SaaS nem correção monetária.
 > Não use dados reais nem publique em produção — ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 > **Assinatura eletrônica:** contratos enviados ao Documenso auto-hospedado (ou ao simulador em desenvolvimento) — ver [docs/ASSINATURA_ELETRONICA.md](docs/ASSINATURA_ELETRONICA.md).
