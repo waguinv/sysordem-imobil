@@ -9,7 +9,7 @@ Os campos de assinatura ficam sempre na ÚLTIMA página, nas alturas usadas pelo
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from fpdf import FPDF
@@ -93,6 +93,9 @@ def render(d: ContractDoc) -> tuple[bytes, int]:
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.set_title(_latin1(f"Contrato {d.number} v{d.version}"))
     pdf.set_creator("SysOrdem Imobil")
+    # Data fixa (a da emissão), não "agora": o mesmo contrato gera sempre os mesmos bytes e o mesmo SHA-256,
+    # então a prévia confere com o documento enviado para assinatura.
+    pdf.set_creation_date(datetime(d.issued_on.year, d.issued_on.month, d.issued_on.day, tzinfo=UTC))
     pdf.add_page()
     pdf.set_fill_color(*BRAND)
     pdf.rect(0, 0, 210, 26, "F")

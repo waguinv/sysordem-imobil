@@ -33,11 +33,13 @@ Staging e produção no **mesmo servidor** (`200.141.27.53`, Ubuntu), cada um co
 | API pública (só webhooks e /health) | `api.imobil.sysordemsistemas.com.br` | `api.staging.imobil.sysordemsistemas.com.br` |
 | Pasta (`DEPLOY_DIR`) | `/opt/sysordem-imobil` | `/opt/sysordem-imobil-staging` |
 | `COMPOSE_PROJECT_NAME` | `sysordem-imobil` | `sysordem-imobil-staging` |
-| `WEB_HOST_PORT` / `API_HOST_PORT` | `3100` / `8100` | `3200` / `8200` |
+| `WEB_HOST_PORT` / `API_HOST_PORT` | `3710` / `8710` | `3720` / `8720` |
 | Site do nginx | `deploy/nginx/imobil-production.conf` | `deploy/nginx/imobil-staging.conf` |
 | Deploy | manual, com aprovação | automático a cada push na `main` |
 
-DNS: os quatro nomes já apontam para `200.141.27.53`. Imagens no GHCR são públicas (sem `docker login`).
+DNS: os quatro nomes já apontam para `200.141.27.53`. **A VPS é compartilhada** com os outros sistemas SysOrdem
+(saúde, comercial, contábil…, portas 3000–3400 já em uso): por isso as portas 37xx/87xx (35xx já é do Comercial staging) e limites de memória
+em todos os containers (`deploy/compose.deploy.yml`) — 1 CPU e ~4 GB de RAM para tudo. Imagens no GHCR são públicas (sem `docker login`).
 Um problema no servidor afeta os dois ambientes; o banco de cada um fica num volume próprio.
 
 No GitHub já estão: environments `staging` e `production` (só a `main`; produção exige aprovação de `waguinv`),
@@ -67,10 +69,10 @@ aviso; um disparo manual falha listando o que falta.
    `deploy_imobil` (privada) e `DEPLOY_KNOWN_HOSTS` = saída do `ssh-keyscan`. Depois apague a chave privada local.
 2. **`.env` de cada pasta** (como `deploy`; `cp .env.example .env`, `chmod 600 .env`) — segredos **diferentes** em
    cada ambiente (gere com `openssl rand -base64 48`):
-   - produção: `ENVIRONMENT=production`, `COMPOSE_PROJECT_NAME=sysordem-imobil`, `WEB_HOST_PORT=3100`,
-     `API_HOST_PORT=8100`, `CORS_ORIGINS=["https://imobil.sysordemsistemas.com.br"]`;
-   - staging: `ENVIRONMENT=staging`, `COMPOSE_PROJECT_NAME=sysordem-imobil-staging`, `WEB_HOST_PORT=3200`,
-     `API_HOST_PORT=8200`, `CORS_ORIGINS=["https://staging.imobil.sysordemsistemas.com.br"]`;
+   - produção: `ENVIRONMENT=production`, `COMPOSE_PROJECT_NAME=sysordem-imobil`, `WEB_HOST_PORT=3710`,
+     `API_HOST_PORT=8710`, `CORS_ORIGINS=["https://imobil.sysordemsistemas.com.br"]`;
+   - staging: `ENVIRONMENT=staging`, `COMPOSE_PROJECT_NAME=sysordem-imobil-staging`, `WEB_HOST_PORT=3720`,
+     `API_HOST_PORT=8720`, `CORS_ORIGINS=["https://staging.imobil.sysordemsistemas.com.br"]`;
    - nos dois: `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `JWT_SECRET` (48+), `PAYMENTS_SANDBOX_SECRET` (só staging;
      em produção deixe vazio), `BACKUP_KEY_FILE=/etc/sysordem/backup-<ambiente>.key` (`chmod 600`; guarde uma cópia
      fora do servidor — sem ela os backups não abrem). Remova as linhas `DOCUMENSO_*`/`SMTP_*` com `CHANGE_ME` ou
