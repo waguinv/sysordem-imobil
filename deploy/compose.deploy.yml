@@ -4,16 +4,24 @@
 # - o HTTPS fica com o nginx do servidor (deploy/nginx/); web e API escutam SÓ em 127.0.0.1, em portas
 #   diferentes por ambiente, então staging e produção convivem no mesmo servidor;
 # - cada ambiente tem a própria pasta e COMPOSE_PROJECT_NAME no .env → containers, rede e volume do banco separados;
-# - VPS compartilhada com outros sistemas: todo container tem limite de memória (não derruba os vizinhos).
+# - VPS compartilhada com outros sistemas: todo container tem limite de memória (não derruba os vizinhos)
+#   e log com rotação (sem isso o json-file do Docker cresce sem limite e enche o disco).
+x-logs: &logs
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
 services:
   db:
     mem_limit: 384m
+    logging: *logs
   migrate:
     image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-api:${IMAGE_TAG:?defina IMAGE_TAG}
     mem_limit: 256m
+    logging: *logs
   api:
     image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-api:${IMAGE_TAG:?defina IMAGE_TAG}
     mem_limit: 384m
+    logging: *logs
     ports: !override
       - "127.0.0.1:${API_HOST_PORT:?defina API_HOST_PORT}:8000"
     environment:
@@ -22,5 +30,6 @@ services:
   web:
     image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-web:${IMAGE_TAG:?defina IMAGE_TAG}
     mem_limit: 512m
+    logging: *logs
     ports: !override
       - "127.0.0.1:${WEB_HOST_PORT:?defina WEB_HOST_PORT}:3000"

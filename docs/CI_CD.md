@@ -42,6 +42,13 @@ DNS: os quatro nomes já apontam para `200.141.27.53`. **A VPS é compartilhada*
 em todos os containers (`deploy/compose.deploy.yml`) — 1 CPU e ~4 GB de RAM para tudo. Imagens no GHCR são públicas (sem `docker login`).
 Um problema no servidor afeta os dois ambientes; o banco de cada um fica num volume próprio.
 
+Situação em 15/11/2026: staging e produção no ar com `sha-9ef97d2`; backups diários às 03:15 (produção) e 03:20
+(staging) no cron do usuário `deploy`. **Atenção:**
+- os backups ficam **só no próprio servidor** — configure `BACKUP_RCLONE_REMOTE` (cópia externa) e guarde fora do
+  servidor as chaves `/etc/sysordem/backup-production.key` e `backup-staging.key` (sem elas os backups não abrem);
+- disco em 88% (5,8 GB livres), ocupado principalmente por imagens e cache de build de **outros** sistemas da VPS;
+- a senha extra do staging está em `/etc/sysordem/staging-acesso.txt` (só root).
+
 No GitHub já estão: environments `staging` e `production` (só a `main`; produção exige aprovação de `waguinv`),
 variáveis `DEPLOY_USER=deploy` e `DEPLOY_DIR` (acima) e `DEPLOY_ENABLED=true` no repositório.
 **Falta em cada environment:** variável `DEPLOY_HOST=200.141.27.53` e segredos `DEPLOY_SSH_KEY` e
