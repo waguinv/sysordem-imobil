@@ -1,15 +1,16 @@
 """Política de contratos por empresa: padrões, limites, Price × SAC, isolamento e permissões."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
+from app.core.clock import business_today
 from tests.conftest import login
 
 pytestmark = pytest.mark.db
 
 API = "/api/v1"
-DUE = (datetime.now(UTC).date() + timedelta(days=30)).isoformat()
+DUE = (business_today() + timedelta(days=30)).isoformat()
 URL = f"{API}/settings/contract-policy"
 
 POLICY = {

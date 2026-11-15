@@ -59,6 +59,16 @@ def list_members(ctx: AuthContext = Depends(require(Perm.MEMBERS_VIEW))) -> list
     return [_member_out(m) for m in rows]
 
 
+def _plan_users(ctx: AuthContext) -> None:
+    """Fase 5c: limite de usuários ativos do plano."""
+    from app.services.subscription import LimitError, check_limit
+
+    try:
+        check_limit(ctx.db, ctx.tenant_id, "users", 1)
+    except LimitError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from None
+
+
 @router.post("/members", response_model=MemberOut, status_code=status.HTTP_201_CREATED)
 def create_member(
     body: MemberCreateIn, ctx: AuthContext = Depends(require(Perm.MEMBERS_MANAGE))
@@ -85,6 +95,7 @@ def create_member(
     if exists:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Usuário já vinculado")
 
+    _plan_users(ctx)
     m = Membership(tenant_id=ctx.tenant_id, user_id=user.id, role=body.role.value)
     db.add(m)
     db.flush()
@@ -123,6 +134,8 @@ def update_member(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Perfil não pode ser atribuído")
         m.role = body.role.value
     if body.is_active is not None:
+        if body.is_active and not m.is_active:
+            _plan_users(ctx)
         m.is_active = body.is_active
     db.flush()
     audit.record(

@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -45,6 +45,15 @@ class AuthContext:
         return self.membership.role
 
 
+# Com a assinatura suspensa/cancelada, alterações ficam bloqueadas. A regra mora em `require()`: cada rota
+# que precisa funcionar mesmo suspensa (pagar, reativar, mudar de plano) declara `allow_suspended=True`.
+_READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+_SUSPENDED = HTTPException(
+    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+    detail="Assinatura suspensa: o sistema está só para consulta. Regularize em Configurações → Assinatura.",
+)
+
+
 def get_auth(
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Session = DB_DEPENDS,
@@ -74,10 +83,17 @@ def get_auth(
     return AuthContext(user=membership.user, tenant=tenant, membership=membership, db=db)
 
 
-def require(perm: Perm) -> Callable[..., AuthContext]:
-    def _dep(ctx: AuthContext = Depends(get_auth)) -> AuthContext:
+def require(perm: Perm, *, allow_suspended: bool = False) -> Callable[..., AuthContext]:
+    """Permissão + (para alterações) assinatura em dia. Leituras sempre passam."""
+
+    def _dep(request: Request, ctx: AuthContext = Depends(get_auth)) -> AuthContext:
         if not can(ctx.role, perm):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissão")
+        if not allow_suspended and request.method not in _READ_METHODS:
+            from app.services.subscription import can_write  # import local: evita ciclo
+
+            if not can_write(ctx.db, ctx.tenant_id):
+                raise _SUSPENDED
         return ctx
 
     return _dep

@@ -35,3 +35,7 @@
 34. Leads do site: distribuir automaticamente para corretores (rodízio) ou o comercial distribui? Fotos, planta e vídeo no site — onde guardar (armazenamento privado com URL temporária)?
 35. Portal do comprador: enviar convite e "esqueci a senha" por e-mail/WhatsApp (depende da decisão 10)? O comprador pode atualizar telefone/endereço pelo portal? Disponibilizar contrato assinado e boleto em PDF?
 36. Informe de pagamentos: formato exigido pelo contador (só valores pagos no ano, como hoje, ou também saldo devedor em 31/12 e CNPJ da empresa)?
+37. Planos SaaS: preços, limites (empreendimentos, lotes, usuários), dias de teste (14), carência (10 dias) e se recursos (portal, site, conciliação) variam por plano. Hoje: Essencial R$ 197 (1/300/3), Profissional R$ 397 (5/2.000/10), Empresarial R$ 797 (ilimitado).
+38. Console do operador SaaS (SysOrdem): ver empresas, conceder cortesia/desconto, estornar fatura, encerrar conta e exportar dados (LGPD). Quem opera e com que acesso?
+39. Emissão de nota fiscal de serviço da assinatura e e-mail de cobrança/recibo (provedor de e-mail — decisão 10).
+40. Termos de uso e política de privacidade: textos jurídicos a redigir (hoje só o aceite é registrado).

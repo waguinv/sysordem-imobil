@@ -43,6 +43,8 @@ class Perm(StrEnum):
     FINANCE_MANAGE = "finance:manage"  # registrar recebimentos
     FINANCE_REVERSE = "finance:reverse"  # estornar recebimentos
     SITE_MANAGE = "site:manage"  # Fase 5a: publicar site e empreendimentos (owner/admin)
+    BILLING_VIEW = "billing:view"  # assinatura, plano e faturas da empresa
+    BILLING_MANAGE = "billing:manage"  # trocar plano, pagar fatura, cancelar
 
 
 _ALL = frozenset(Perm)
@@ -51,7 +53,7 @@ _BASE = frozenset({Perm.TENANT_VIEW, Perm.DEVELOPMENTS_VIEW})
 
 MATRIX: dict[Role, frozenset[Perm]] = {
     Role.OWNER: _ALL,
-    Role.ADMIN: _ALL,
+    Role.ADMIN: _ALL - {Perm.BILLING_MANAGE},  # assinatura: só o proprietário altera (hipótese)
     Role.FINANCEIRO: _BASE
     | {
         Perm.MEMBERS_VIEW,
