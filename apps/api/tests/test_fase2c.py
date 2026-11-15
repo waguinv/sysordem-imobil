@@ -3,13 +3,14 @@
 import threading
 import time
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
+from app.core.clock import business_today
 from tests.conftest import login
 
 pytestmark = pytest.mark.db
@@ -18,7 +19,7 @@ API = "/api/v1"
 
 
 def _future(days: int = 30) -> str:
-    return (datetime.now(UTC).date() + timedelta(days=days)).isoformat()
+    return (business_today() + timedelta(days=days)).isoformat()
 
 
 @pytest.fixture()
@@ -163,7 +164,7 @@ def test_create_proposal_uses_policy_and_reports_discount(client, env):
     assert Decimal(p["discount_pct"]) == Decimal("5.00")
     assert p["amortization"] == "price" and Decimal(p["interest_monthly_pct"]) == 0
     assert p["installment_amount"] == "1000.00"  # 80.000 / 80 sem juros
-    assert date.fromisoformat(p["valid_until"]) == datetime.now(UTC).date() + timedelta(days=7)
+    assert date.fromisoformat(p["valid_until"]) == business_today() + timedelta(days=7)
     assert p["broker_name"] == "Corretor Casa" and p["lot_number"] == "01"
     # lote continua disponível enquanto a proposta está aberta
     assert client.get(f"{API}/lots/{p['lot_id']}", headers=h).json()["status"] == "disponivel"
@@ -184,7 +185,7 @@ def test_proposal_outside_policy_is_rejected(client, env, over, msg):
 
 def test_proposal_validity_limits(client, env):
     h, lot, cust = env["h"], env["lots"][0]["id"], env["customer"]["id"]
-    yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+    yesterday = (business_today() - timedelta(days=1)).isoformat()
     assert _proposal(client, h, lot, cust, valid_until=yesterday).status_code == 422
     assert _proposal(client, h, lot, cust, valid_until=_future(91)).status_code == 422
     assert _proposal(client, h, lot, cust, valid_until=_future(90)).status_code == 201

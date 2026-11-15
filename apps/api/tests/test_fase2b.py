@@ -3,18 +3,19 @@
 import threading
 import time
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 from sqlalchemy import text
 
+from app.core.clock import business_today
 from tests.conftest import login
 
 pytestmark = pytest.mark.db
 
 API = "/api/v1"
-DUE = (datetime.now(UTC).date() + timedelta(days=30)).isoformat()
+DUE = (business_today() + timedelta(days=30)).isoformat()
 
 
 @pytest.fixture()
@@ -132,7 +133,7 @@ def test_cash_sale(client, env):
         ({"installments_count": 0}, "venda à vista"),
         ({"down_payment": "120000.00"}, "não há parcelas"),
         ({"first_due_date": None}, "vencimento"),
-        ({"first_due_date": (date.today() - timedelta(days=2)).isoformat()}, "passado"),
+        ({"first_due_date": (business_today() - timedelta(days=2)).isoformat()}, "passado"),
     ],
 )
 def test_invalid_terms_rejected_without_side_effects(client, env, over, msg):
@@ -244,7 +245,7 @@ def test_concurrent_contracts_from_same_reservation_only_one_wins(env, world):
         down_payment=Decimal("20000"),
         installments_count=10,
         interest_monthly_pct=Decimal("0"),
-        first_due_date=datetime.now(UTC).date() + timedelta(days=30),
+        first_due_date=business_today() + timedelta(days=30),
         adjustment_index="nenhum",
         late_fee_pct=Decimal("2"),
         late_interest_monthly_pct=Decimal("1"),
