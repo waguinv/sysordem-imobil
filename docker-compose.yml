@@ -41,6 +41,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
       LOG_FORMAT: ${LOG_FORMAT:-}
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
       PAYMENTS_SANDBOX_SECRET: ${PAYMENTS_SANDBOX_SECRET:-}
       # Assinatura eletrônica (opcional): Documenso auto-hospedado — ver docs/ASSINATURA_ELETRONICA.md
       DOCUMENSO_URL: ${DOCUMENSO_URL:-}

@@ -105,3 +105,51 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
           skip-setup-trivy: true
+
+  # Fase 6b: sobe a pilha real (compose), gera dados pela API sob carga (com teste de corrida na reserva),
+  # faz backup com deploy/backup.sh, restaura com deploy/restore.sh num banco novo e confere linha a linha.
+  drill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: .env de teste (segredos aleatórios)
+        run: |
+          cp .env.example .env
+          while grep -q 'CHANGE_ME' .env; do
+            sed -i "0,/CHANGE_ME[A-Z0-9_]*/s//ci$(openssl rand -hex 24)/" .env
+          done
+          openssl rand -base64 48 > "$RUNNER_TEMP/backup.key"
+          sed -i "s|^BACKUP_KEY_FILE=.*|BACKUP_KEY_FILE=$RUNNER_TEMP/backup.key|; s|^BACKUP_DIR=.*|BACKUP_DIR=$RUNNER_TEMP/backups|" .env
+      - name: Subir banco, migrations e API
+        run: |
+          docker compose up -d --build --wait api
+          docker compose run --rm migrate python -m scripts.seed_dev
+      - name: Carga + corrida de reservas
+        working-directory: apps/api
+        env:
+          LOAD_PASSWORD: imobil-dev-123
+        run: |
+          pip install "httpx>=0.27,<1.0"
+          python -m scripts.load_test --users 10 --duration 20 --max-p95-ms 2000 --json "$RUNNER_TEMP/carga.json"
+      - name: Backup criptografado
+        run: deploy/backup.sh ci
+      - name: Restauração num banco novo
+        run: deploy/restore.sh "$(ls "$RUNNER_TEMP"/backups/*.dump.enc)" imobil_restore_ci
+      - name: Conferir restauração (linhas, RLS, políticas)
+        run: docker compose run --rm migrate python -m scripts.verify_restore --source imobil --target imobil_restore_ci
+      - name: Backup no disco está cifrado (não é um dump legível)
+        run: |
+          f="$(ls "$RUNNER_TEMP"/backups/*.dump.enc)"
+          if head -c 5 "$f" | grep -q PGDMP; then echo "backup gravado sem criptografia!"; exit 1; fi
+          [ "$(stat -c %a "$f")" = "600" ] || { echo "permissão do backup: $(stat -c %a "$f")"; exit 1; }
+      - if: always()
+        run: docker compose logs --tail=100 api
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carga
+          path: ${{ runner.temp }}/carga.json
+          if-no-files-found: ignore

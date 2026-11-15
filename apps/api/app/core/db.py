@@ -26,9 +26,13 @@ def get_engine() -> Engine:
     return create_engine(
         s.database_url,
         pool_pre_ping=True,
+        # Fora do desenvolvimento, erros de SQL não levam valores (nomes, e-mails, CPF) para logs.
+        hide_parameters=s.environment not in ("development", "test"),
         # Banco fora do ar deve falhar rápido (503 no /ready), não pendurar a requisição por minutos.
         connect_args={"connect_timeout": s.db_connect_timeout_seconds},
         pool_timeout=s.db_pool_timeout_seconds,
+        pool_size=s.db_pool_size,
+        max_overflow=s.db_max_overflow,
     )
 
 

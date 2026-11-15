@@ -8,7 +8,7 @@ ignore = ["S101", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S105", "S106"]
-"scripts/*" = ["S105", "S106"]
+"scripts/*" = ["S105", "S106", "S608"]  # S608: nomes de tabela vindos do catálogo do banco
 "migrations/*" = ["E501", "S608"]
 
 [tool.mypy]

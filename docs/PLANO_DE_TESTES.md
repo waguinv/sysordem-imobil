@@ -127,9 +127,16 @@
 - CSP do web: nonce, `strict-dynamic`, sem `unsafe-eval` em produção; verificado no navegador com build de produção
   (login, navegação client-side, nenhuma violação de CSP).
 
+## Implementado (Fase 6b) — ver [REVISAO_SEGURANCA.md](REVISAO_SEGURANCA.md)
+- Restauração de backup no CI (`drill`): backup cifrado → restore → `verify_restore.py` (linhas e hash md5 de cada
+  tabela, RLS/políticas, papel da aplicação sem/com contexto); verificador validado também com divergências forçadas.
+- Carga e concorrência (`scripts/load_test.py`): corrida de 25 reservas simultâneas no mesmo lote (1 vence) e carga
+  mista com limites de p95/erros; resultados locais registrados.
+- `hide_parameters` do SQLAlchemy fora do desenvolvimento (`test_fase6a.py`).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.
 - Integração: contrato e geração de parcelas; reserva concorrente; webhook repetido; importação de extrato.
 - Segurança: tenant A não acessa/edita tenant B; comprador não acessa contrato alheio; perfil sem permissão não baixa pagamento; DTO público sem dados privados.
-- Operação (Fase 6b): restauração de backup testada no CI; carga; falha do PSP sem corromper o estado financeiro.
+- Operação: carga em staging com hardware real; falha do PSP sem corromper o estado financeiro.

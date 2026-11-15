@@ -27,7 +27,7 @@ from app.core.config import get_settings
 from app.core.db import get_engine
 from app.core.http import RateLimiter, SecurityMiddleware, configure_logging
 
-VERSION = "0.15.0"
+VERSION = "0.16.0"
 log = logging.getLogger("imobil.api")
 
 settings = get_settings()
@@ -90,7 +90,7 @@ v1 = APIRouter(prefix="/api/v1")
 
 @v1.get("", tags=["meta"])
 def api_root() -> dict[str, str]:
-    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "6a"}
+    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "6b"}
 
 
 v1.include_router(auth.router)
