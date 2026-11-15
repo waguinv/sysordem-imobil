@@ -45,14 +45,16 @@ class AuthContext:
         return self.membership.role
 
 
-# Com a assinatura suspensa/cancelada, alterações ficam bloqueadas — exceto as da própria assinatura
-# (para regularizar) e a troca de empresa.
-_BILLING_PATHS = ("/api/v1/billing", "/api/v1/auth/")
+# Com a assinatura suspensa/cancelada, alterações ficam bloqueadas. A regra mora em `require()`: cada rota
+# que precisa funcionar mesmo suspensa (pagar, reativar, mudar de plano) declara `allow_suspended=True`.
 _READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+_SUSPENDED = HTTPException(
+    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+    detail="Assinatura suspensa: o sistema está só para consulta. Regularize em Configurações → Assinatura.",
+)
 
 
 def get_auth(
-    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Session = DB_DEPENDS,
 ) -> AuthContext:
@@ -78,22 +80,20 @@ def get_auth(
     tenant = db.get(Tenant, tenant_id)
     if membership is None or tenant is None or not tenant.is_active or not membership.user.is_active:
         raise _UNAUTHORIZED
-    if request.method not in _READ_METHODS and not request.url.path.startswith(_BILLING_PATHS):
-        from app.services.subscription import status as subscription_status  # import local: evita ciclo
-
-        if not subscription_status(db, tenant_id).can_write:
-            raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail="Assinatura suspensa: o sistema está só para consulta. Regularize em Configurações → "
-                "Assinatura.",
-            )
     return AuthContext(user=membership.user, tenant=tenant, membership=membership, db=db)
 
 
-def require(perm: Perm) -> Callable[..., AuthContext]:
-    def _dep(ctx: AuthContext = Depends(get_auth)) -> AuthContext:
+def require(perm: Perm, *, allow_suspended: bool = False) -> Callable[..., AuthContext]:
+    """Permissão + (para alterações) assinatura em dia. Leituras sempre passam."""
+
+    def _dep(request: Request, ctx: AuthContext = Depends(get_auth)) -> AuthContext:
         if not can(ctx.role, perm):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissão")
+        if not allow_suspended and request.method not in _READ_METHODS:
+            from app.services.subscription import can_write  # import local: evita ciclo
+
+            if not can_write(ctx.db, ctx.tenant_id):
+                raise _SUSPENDED
         return ctx
 
     return _dep

@@ -323,3 +323,204 @@ def test_rls_and_grants(app_engine, client, nova, owner_engine):
     ):
         with pytest.raises(ProgrammingError, match="permission denied"), app_engine.begin() as c:
             c.execute(text(sql))
+
+
+# ─────────────────────────── correções da revisão do PR #12 ───────────────────────────
+
+
+def _tenant_id(owner_engine, slug="loteadora-nova"):
+    with owner_engine.begin() as c:
+        return c.execute(text("SELECT id FROM tenants WHERE slug = :s"), {"s": slug}).scalar()
+
+
+def _invoices_db(owner_engine, tid):
+    with owner_engine.begin() as c:
+        return c.execute(
+            text(
+                "SELECT id, status, external_id, divergence, period_start FROM subscription_invoices "
+                "WHERE tenant_id = :t ORDER BY created_at"
+            ),
+            {"t": tid},
+        ).all()
+
+
+def _hook(client, tid, external, amount, event_id):
+    from app.services.psp.sandbox import SandboxProvider
+
+    body, headers = SandboxProvider().build_event(
+        etype="charge.paid", external_id=external, amount=Decimal(amount), event_id=event_id
+    )
+    return client.post(f"{API}/webhooks/billing/sandbox/{tid}", content=body, headers=headers).json()[
+        "status"
+    ]
+
+
+def test_paid_after_cancel_and_reactivation_is_honored_not_lost(client, nova, owner_engine):
+    _set_trial_end(owner_engine, 5)
+    tid = _tenant_id(owner_engine)
+    inv = _billing(client, nova)["invoices"][0]
+    client.post(f"{API}/billing/invoices/{inv['id']}/pay", headers=nova, json={"method": "pix"})
+    client.post(f"{API}/billing/cancel", headers=nova, json={"reason": "vou pensar"})
+    client.post(f"{API}/billing/reactivate", headers=nova)  # gera outra fatura do mesmo período
+    rows = _invoices_db(owner_engine, tid)
+    assert [r.status for r in rows] == ["cancelada", "aberta"] and rows[0].period_start == rows[
+        1
+    ].period_start
+    # o cliente paga o Pix ANTIGO (da fatura cancelada): o dinheiro entra, nada de "duplicado"
+    assert _hook(client, tid, rows[0].external_id, inv["amount"], "evt-old") == "pago"
+    rows = _invoices_db(owner_engine, tid)
+    assert [r.status for r in rows][:2] == ["paga", "cancelada"]  # a duplicata do período deixa de valer
+    st = _billing(client, nova)["status"]
+    assert st["state"] == "ativa" and st["covered_through"] < st["covered_until"]
+
+
+def test_paid_cancelled_invoice_for_already_paid_period_is_flagged(client, nova, owner_engine):
+    _set_trial_end(owner_engine, 5)
+    tid = _tenant_id(owner_engine)
+    inv = _billing(client, nova)["invoices"][0]
+    client.post(f"{API}/billing/invoices/{inv['id']}/pay", headers=nova, json={"method": "pix"})
+    client.post(f"{API}/billing/cancel", headers=nova, json={"reason": "vou pensar"})
+    client.post(f"{API}/billing/reactivate", headers=nova)
+    new = [i for i in _billing(client, nova)["invoices"] if i["status"] == "aberta"][0]
+    client.post(f"{API}/billing/invoices/{new['id']}/pay", headers=nova, json={"method": "boleto"})
+    rows = _invoices_db(owner_engine, tid)
+    assert _hook(client, tid, rows[1].external_id, new["amount"], "evt-new") == "pago"
+    # depois o Pix antigo também é pago: período já pago → divergência registrada (devolver)
+    assert _hook(client, tid, rows[0].external_id, inv["amount"], "evt-old") == "pago_em_duplicidade"
+    old = [i for i in _billing(client, nova)["invoices"] if i["id"] == inv["id"]][0]
+    assert old["status"] == "cancelada" and "devolver" in old["divergence"]
+
+
+def test_underpayment_is_recorded_and_visible(client, nova, owner_engine):
+    _set_trial_end(owner_engine, 3)
+    tid = _tenant_id(owner_engine)
+    inv = _billing(client, nova)["invoices"][0]
+    client.post(f"{API}/billing/invoices/{inv['id']}/pay", headers=nova, json={})
+    external = _invoices_db(owner_engine, tid)[0].external_id
+    assert _hook(client, tid, external, "196.90", "evt-low") == "valor_divergente"
+    b = _billing(client, nova)
+    shown = b["invoices"][0]
+    assert shown["status"] == "aberta" and "196.90" in shown["divergence"]
+    actions = {a["action"] for a in client.get(f"{API}/audit-events", headers=nova).json()}
+    assert "subscription_invoice.divergent" in actions
+    # pagamento correto depois resolve e limpa a divergência
+    assert _hook(client, tid, external, inv["amount"], "evt-ok") == "pago"
+    assert _billing(client, nova)["invoices"][-1]["divergence"] is None
+
+
+def test_billing_sandbox_is_separate_from_tenant_sandbox(client, nova, owner_engine, monkeypatch):
+    from app.core.config import Settings, get_settings
+
+    _set_trial_end(owner_engine, 3)
+    inv = _billing(client, nova)["invoices"][0]
+    # sandbox das empresas ligado, sandbox da cobrança da plataforma desligado
+    monkeypatch.setattr(get_settings(), "payments_sandbox_enabled", True)
+    monkeypatch.setattr(get_settings(), "billing_sandbox_enabled", False)
+    assert _billing(client, nova)["sandbox"] is False
+    r = client.post(f"{API}/billing/invoices/{inv['id']}/pay", headers=nova, json={})
+    assert r.status_code == 409 and "indisponível" in r.json()["detail"]
+    assert (
+        client.post(f"{API}/billing/invoices/{inv['id']}/sandbox/simulate", headers=nova).status_code == 404
+    )
+    tid = _tenant_id(owner_engine)
+    assert client.post(f"{API}/webhooks/billing/sandbox/{tid}", content=b"{}").status_code == 404
+    # em produção: nunca liga (e configurar ligado é erro)
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    assert Settings().billing_sandbox is False  # type: ignore[call-arg]
+    monkeypatch.setenv("BILLING_SANDBOX_ENABLED", "true")
+    with pytest.raises(ValueError, match="BILLING_SANDBOX_ENABLED"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_signup_rejects_non_public_plan(client, world, owner_engine):
+    with owner_engine.begin() as c:
+        c.execute(text("UPDATE plans SET is_public = false WHERE code = 'empresarial'"))
+    try:
+        r = _signup(client, plan="empresarial")
+        assert r.status_code == 422 and "Plano inválido" in r.json()["detail"]
+    finally:
+        with owner_engine.begin() as c:
+            c.execute(text("UPDATE plans SET is_public = true WHERE code = 'empresarial'"))
+
+
+def test_concurrent_signup_same_slug_returns_409(client, world, monkeypatch):
+    import threading
+
+    from app.api.v1 import billing
+
+    barrier = threading.Barrier(2)
+    real = billing._signup_allowed
+
+    def synced() -> bool:
+        barrier.wait(timeout=10)  # os dois passam juntos pelas checagens de duplicidade
+        return real()
+
+    monkeypatch.setattr(billing, "_signup_allowed", synced)
+    codes: list[int] = []
+    lock = threading.Lock()
+
+    def go(email: str) -> None:
+        r = _signup(client, slug="mesma-empresa", email=email)
+        with lock:
+            codes.append(r.status_code)
+
+    threads = [threading.Thread(target=go, args=(e,)) for e in ("a@dup.example.com", "b@dup.example.com")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted(codes) == [201, 409]
+
+
+def test_concurrent_creations_respect_plan_limit(client, nova, owner_engine):
+    import threading
+    import time
+
+    from app.core.db import get_sessionmaker, set_tenant
+    from app.models import Development
+    from app.services.subscription import LimitError, check_limit
+
+    tid = _tenant_id(owner_engine)
+    barrier = threading.Barrier(2)
+    results: list[str] = []
+    lock = threading.Lock()
+
+    def create(name: str) -> None:
+        db = get_sessionmaker()()
+        try:
+            set_tenant(db, tid)
+            barrier.wait(timeout=10)
+            check_limit(db, tid, "developments", 1)
+            db.add(Development(tenant_id=tid, name=name, kind="loteamento", status="planejamento"))
+            db.flush()
+            time.sleep(0.3)
+            db.commit()
+            outcome = "ok"
+        except LimitError:
+            db.rollback()
+            outcome = "limit"
+        finally:
+            db.close()
+        with lock:
+            results.append(outcome)
+
+    threads = [threading.Thread(target=create, args=(n,)) for n in ("A", "B")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted(results) == ["limit", "ok"]  # plano Essencial: 1 empreendimento
+
+
+def test_status_endpoint_is_read_only_and_switch_tenant_works_when_suspended(client, nova, owner_engine):
+    _set_trial_end(owner_engine, -15)
+    tid = _tenant_id(owner_engine)
+    st = client.get(f"{API}/billing/status", headers=nova).json()
+    assert st["state"] == "suspensa"
+    assert _invoices_db(owner_engine, tid) == []  # o aviso do topo não gera fatura
+    # rotas da assinatura funcionam suspensas; o resto é só leitura
+    assert (
+        client.post(f"{API}/billing/plan", headers=nova, json={"plan_code": "profissional"}).status_code
+        == 200
+    )
+    assert _dev(client, nova).status_code == 402

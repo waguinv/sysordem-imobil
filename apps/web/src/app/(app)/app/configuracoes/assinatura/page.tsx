@@ -18,7 +18,7 @@ import {
   reactivateSubscriptionAction,
   simulateInvoiceAction,
 } from "@/lib/actions-fase5c";
-import { type Billing, limitLabel, SUBSCRIPTION_STATE } from "@/lib/billing";
+import { type Billing, dayBefore, limitLabel, SUBSCRIPTION_STATE } from "@/lib/billing";
 import { brl, dateBR } from "@/lib/format";
 import { api, can, getMe } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -82,8 +82,10 @@ export default async function AssinaturaPage() {
           <h1 className="text-brand-institutional text-2xl font-bold">Assinatura</h1>
           <p className="text-muted-foreground text-sm">
             Plano {st.plan_name}
-            {st.state === "teste" && st.covered_until && ` · teste grátis até ${dateBR(st.covered_until)}`}
-            {st.state === "ativa" && st.covered_until && ` · pago até ${dateBR(st.covered_until)}`}
+            {st.state === "teste" &&
+              st.covered_through &&
+              ` · teste grátis até ${dateBR(st.covered_through)}`}
+            {st.state === "ativa" && st.covered_through && ` · pago até ${dateBR(st.covered_through)}`}
             {st.cancelled && " · cancelamento agendado"}
           </p>
         </div>
@@ -126,10 +128,16 @@ export default async function AssinaturaPage() {
                   <li key={i.id} className="space-y-2 py-3 text-sm">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span>
-                        {dateBR(i.period_start)} a {dateBR(i.period_end)} · vence {dateBR(i.due_date)}
+                        {dateBR(i.period_start)} a {dateBR(dayBefore(i.period_end))} · vence{" "}
+                        {dateBR(i.due_date)}
                       </span>
                       <strong className="tabular-nums">{brl(i.amount)}</strong>
                     </div>
+                    {i.divergence && (
+                      <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-800">
+                        {i.divergence}
+                      </p>
+                    )}
                     {i.pix_code || i.boleto_line ? (
                       <div className="bg-brand-surface/60 space-y-2 rounded-lg p-3">
                         <p className="font-mono text-xs break-all select-all">
@@ -242,10 +250,11 @@ export default async function AssinaturaPage() {
               {history.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
                   <span>
-                    {dateBR(i.period_start)} a {dateBR(i.period_end)}
+                    {dateBR(i.period_start)} a {dateBR(dayBefore(i.period_end))}
                     {i.paid_at && (
                       <span className="text-muted-foreground"> · paga em {dateBR(i.paid_at)}</span>
                     )}
+                    {i.divergence && <span className="block text-xs text-red-800">{i.divergence}</span>}
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="tabular-nums">{brl(i.amount)}</span>

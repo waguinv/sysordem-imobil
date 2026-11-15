@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # PAYMENTS_SANDBOX_SECRET fixo).
     payments_sandbox_enabled: bool | None = None
     payments_sandbox_secret: str | None = Field(default=None, min_length=32)
+    # Fase 5c: sandbox do PSP da PLATAFORMA (cobra a assinatura SaaS). Separado do sandbox das empresas e
+    # PROIBIDO em produção — senão o simulador deixaria um proprietário "pagar" a própria assinatura.
+    billing_sandbox_enabled: bool | None = None
     # Janela aceita para o carimbo de tempo do webhook (proteção contra replay)
     payments_webhook_tolerance_seconds: int = 300
 
@@ -71,6 +74,18 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @model_validator(mode="after")
+    def _no_billing_sandbox_in_production(self) -> "Settings":
+        if self.is_production and self.billing_sandbox_enabled:
+            raise ValueError("BILLING_SANDBOX_ENABLED não pode ser ligado em produção")
+        return self
+
+    @property
+    def billing_sandbox(self) -> bool:
+        if self.is_production:
+            return False
+        return True if self.billing_sandbox_enabled is None else self.billing_sandbox_enabled
 
     @property
     def sandbox_enabled(self) -> bool:

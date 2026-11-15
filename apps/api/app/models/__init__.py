@@ -827,6 +827,8 @@ class SubscriptionInvoice(Base):
     boleto_line: Mapped[str | None] = mapped_column(String(80))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     paid_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    # pagamento confirmado que não pôde ser aplicado (a menor, em duplicidade) — visível à empresa
+    divergence: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
 
 

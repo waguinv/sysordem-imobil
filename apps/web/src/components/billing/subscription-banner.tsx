@@ -8,14 +8,14 @@ import { cn } from "@/lib/utils";
 export function SubscriptionBanner({ st, canManage }: { st: BillingStatus; canManage: boolean }) {
   let tone: "info" | "warn" | "danger" | null = null;
   let text = "";
-  if (st.state === "teste" && st.covered_until) {
-    const d = daysUntil(st.covered_until);
+  if (st.state === "teste" && st.covered_through) {
+    const d = daysUntil(st.covered_through); // 0 = hoje é o último dia do teste
     if (d <= 7) {
       tone = "info";
       text =
         d <= 0
           ? "O teste grátis termina hoje."
-          : `O teste grátis termina em ${d} dia(s) (${dateBR(st.covered_until)}).`;
+          : `O teste grátis termina em ${d} dia(s) (${dateBR(st.covered_through)}).`;
     }
   } else if (st.state === "em_atraso" && st.grace_until) {
     tone = "warn";

@@ -16,7 +16,10 @@ export type BillingStatus = {
   plan_code: string | null;
   plan_name: string | null;
   trial_ends_at: string | null;
+  /** exclusivo: 1º dia não coberto */
   covered_until: string | null;
+  /** último dia coberto — use este para exibir */
+  covered_through: string | null;
   grace_until: string | null;
   cancelled: boolean;
   can_write: boolean;
@@ -34,6 +37,8 @@ export type SubscriptionInvoice = {
   pix_code: string | null;
   boleto_line: string | null;
   paid_at: string | null;
+  /** pagamento confirmado pelo PSP que não pôde ser aplicado (a menor, em duplicidade) */
+  divergence: string | null;
 };
 
 export type Billing = {
@@ -65,6 +70,12 @@ export const SUBSCRIPTION_STATE: Record<
 
 export function limitLabel(v: number | null, unit: string): string {
   return v === null ? `${unit} ilimitados` : `até ${v.toLocaleString("pt-BR")} ${unit}`;
+}
+
+/** Véspera de uma data ISO (o fim de período da API é exclusivo; para exibir, mostra-se o último dia). */
+export function dayBefore(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d! - 1)).toISOString().slice(0, 10);
 }
 
 /** Dias inteiros de hoje até a data (negativo = passou). */

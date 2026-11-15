@@ -6,13 +6,14 @@ import threading
 import time
 import uuid
 from collections import deque
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.deps import AuthContext, require
@@ -33,7 +34,7 @@ from app.models import (
     Tenant,
     User,
 )
-from app.services import audit, psp
+from app.services import audit
 from app.services import subscription as svc
 from app.services.finance import money
 from app.services.psp.base import EVENT_PAID, InvalidSignatureError
@@ -144,7 +145,8 @@ def signup(body: SignupIn, db: Session = DB_DEPENDS) -> SignupOut:
         raise HTTPException(
             status_code=422, detail="Identificador inválido: use 3 a 40 letras minúsculas, números e hífen"
         )
-    if db.get(Plan, body.plan_code) is None:
+    plan = db.get(Plan, body.plan_code)
+    if plan is None or not plan.is_public:
         raise HTTPException(status_code=422, detail="Plano inválido")
     if not _signup_allowed():
         raise HTTPException(
@@ -161,19 +163,29 @@ def signup(body: SignupIn, db: Session = DB_DEPENDS) -> SignupOut:
         )
 
     tenant_id = uuid.uuid4()
-    # Papel da aplicação só pode inserir (id, slug, name) em tenants — o resto vem dos padrões do banco.
-    db.execute(
-        text("INSERT INTO tenants (id, slug, name) VALUES (:i, :s, :n)"),
-        {"i": tenant_id, "s": slug, "n": body.company_name.strip()},
-    )
     user = User(email=email, full_name=body.full_name.strip(), password_hash=hash_password(body.password))
-    db.add(user)
-    db.flush()
+    try:
+        # cadastro simultâneo com o mesmo identificador/e-mail: o índice único barra o segundo
+        with db.begin_nested():
+            # Papel da aplicação só pode inserir (id, slug, name) em tenants — o resto vem dos padrões.
+            db.execute(
+                text("INSERT INTO tenants (id, slug, name) VALUES (:i, :s, :n)"),
+                {"i": tenant_id, "s": slug, "n": body.company_name.strip()},
+            )
+            db.add(user)
+            db.flush()
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409, detail="Identificador ou e-mail já em uso. Confira e tente de novo."
+        ) from None
     set_tenant(db, tenant_id)
     m = Membership(tenant_id=tenant_id, user_id=user.id, role="owner")
     db.add(m)
     db.flush()
-    sub = svc.start(db, tenant_id=tenant_id, plan_code=body.plan_code, actor=user.id)
+    try:
+        sub = svc.start(db, tenant_id=tenant_id, plan_code=plan.code, actor=user.id)
+    except svc.SubscriptionError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
     audit.record(
         db,
         tenant_id=tenant_id,
@@ -204,7 +216,8 @@ class StatusOut(BaseModel):
     plan_code: str | None
     plan_name: str | None
     trial_ends_at: date | None
-    covered_until: date | None
+    covered_until: date | None  # exclusivo: 1º dia NÃO coberto
+    covered_through: date | None  # último dia coberto (para exibir)
     grace_until: date | None
     cancelled: bool
     can_write: bool
@@ -228,6 +241,7 @@ class InvoiceOut(BaseModel):
     pix_code: str | None
     boleto_line: str | None
     paid_at: datetime | None
+    divergence: str | None
 
 
 class BillingOut(BaseModel):
@@ -247,6 +261,7 @@ def _status(ctx: AuthContext) -> StatusOut:
         plan_name=st.plan.name if st.plan else None,
         trial_ends_at=st.trial_ends_at,
         covered_until=st.covered_until,
+        covered_through=st.covered_until - timedelta(days=1) if st.covered_until else None,
         grace_until=st.grace_until,
         cancelled=st.cancelled,
         can_write=st.can_write,
@@ -266,6 +281,7 @@ def _invoice_out(i: SubscriptionInvoice) -> InvoiceOut:
         pix_code=i.pix_code,
         boleto_line=i.boleto_line,
         paid_at=i.paid_at,
+        divergence=i.divergence,
     )
 
 
@@ -283,7 +299,7 @@ def _billing(ctx: AuthContext) -> BillingOut:
         plans=_plans(ctx.db),
         invoices=[_invoice_out(i) for i in invoices],
         amount_due=money(svc.amount_due(ctx.db, ctx.tenant_id)),
-        sandbox=psp.get_provider("sandbox") is not None,
+        sandbox=svc.billing_provider("sandbox") is not None,
     )
 
 
@@ -293,8 +309,8 @@ def _business(e: svc.SubscriptionError) -> HTTPException:
 
 @router.get("/billing/status", response_model=StatusOut)
 def billing_status(ctx: AuthContext = Depends(require(Perm.TENANT_VIEW))) -> StatusOut:
-    """Situação para o aviso no topo do sistema (qualquer membro)."""
-    svc.sync_invoices(ctx.db, ctx.tenant_id)
+    """Situação para o aviso no topo do sistema (qualquer membro). Só leitura: a fatura é gerada ao abrir
+    a assinatura, ao pagar e ao reativar."""
     return _status(ctx)
 
 
@@ -317,7 +333,9 @@ class PayIn(BaseModel):
 
 
 @router.post("/billing/plan", response_model=BillingOut)
-def change_plan(body: PlanChangeIn, ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE))) -> BillingOut:
+def change_plan(
+    body: PlanChangeIn, ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE, allow_suspended=True))
+) -> BillingOut:
     try:
         svc.change_plan(
             ctx.db, tenant_id=ctx.tenant_id, plan_code=body.plan_code, actor=ctx.user.id, reason=body.reason
@@ -329,7 +347,7 @@ def change_plan(body: PlanChangeIn, ctx: AuthContext = Depends(require(Perm.BILL
 
 @router.post("/billing/cancel", response_model=BillingOut)
 def cancel_subscription(
-    body: ReasonIn, ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE))
+    body: ReasonIn, ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE, allow_suspended=True))
 ) -> BillingOut:
     try:
         svc.cancel(ctx.db, tenant_id=ctx.tenant_id, actor=ctx.user.id, reason=body.reason)
@@ -339,7 +357,9 @@ def cancel_subscription(
 
 
 @router.post("/billing/reactivate", response_model=BillingOut)
-def reactivate_subscription(ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE))) -> BillingOut:
+def reactivate_subscription(
+    ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE, allow_suspended=True)),
+) -> BillingOut:
     try:
         svc.reactivate(ctx.db, tenant_id=ctx.tenant_id, actor=ctx.user.id)
     except svc.SubscriptionError as e:
@@ -349,7 +369,9 @@ def reactivate_subscription(ctx: AuthContext = Depends(require(Perm.BILLING_MANA
 
 @router.post("/billing/invoices/{invoice_id}/pay", response_model=InvoiceOut)
 def pay_invoice(
-    invoice_id: uuid.UUID, body: PayIn, ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE))
+    invoice_id: uuid.UUID,
+    body: PayIn,
+    ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE, allow_suspended=True)),
 ) -> InvoiceOut:
     try:
         inv = svc.pay(
@@ -367,10 +389,10 @@ class SimulateOut(BaseModel):
 
 @router.post("/billing/invoices/{invoice_id}/sandbox/simulate", response_model=SimulateOut)
 def simulate_invoice_payment(
-    invoice_id: uuid.UUID, ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE))
+    invoice_id: uuid.UUID, ctx: AuthContext = Depends(require(Perm.BILLING_MANAGE, allow_suspended=True))
 ) -> SimulateOut:
     """Sandbox: o "PSP" da plataforma envia um webhook assinado de pagamento (mesmo caminho do externo)."""
-    p = psp.get_provider("sandbox")
+    p = svc.billing_provider("sandbox")
     if not isinstance(p, SandboxProvider):
         raise HTTPException(status_code=404, detail="Simulador indisponível neste ambiente")
     inv = ctx.db.scalar(
@@ -406,7 +428,7 @@ def billing_webhook(
     db: Session = DB_DEPENDS,
 ) -> dict[str, str]:
     """Notificação do PSP da plataforma sobre faturas da assinatura. Autenticação = assinatura do PSP."""
-    p = psp.get_provider(provider)
+    p = svc.billing_provider(provider)
     if p is None:
         raise HTTPException(status_code=404, detail="Provedor desconhecido")
     try:

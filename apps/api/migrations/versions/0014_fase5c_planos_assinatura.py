@@ -109,6 +109,7 @@ def upgrade() -> None:
         sa.Column("boleto_line", sa.String(80)),
         sa.Column("paid_at", sa.DateTime(timezone=True)),
         sa.Column("paid_amount", money),
+        sa.Column("divergence", sa.Text),  # pagamento confirmado e não aplicado (a menor, em duplicidade)
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=now),
         sa.UniqueConstraint("tenant_id", "id", name="uq_subscription_invoices_tenant_id"),
         sa.CheckConstraint(

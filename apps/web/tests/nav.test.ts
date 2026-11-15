@@ -8,7 +8,7 @@ import {
   parseDecimalBR,
   timeLeft,
 } from "@/lib/format";
-import { daysUntil, limitLabel } from "@/lib/billing";
+import { dayBefore, daysUntil, limitLabel } from "@/lib/billing";
 import { decimalBR, toCSV } from "@/lib/csv";
 import { findRoute, isGroup, NAV, navFor } from "@/lib/nav";
 import { initials } from "@/lib/utils";
@@ -193,5 +193,10 @@ describe("assinatura", () => {
     expect(daysUntil("2026-11-12", now)).toBe(0);
     expect(daysUntil("2026-11-19", now)).toBe(7);
     expect(daysUntil("2026-11-10", now)).toBe(-2);
+  });
+  it("mostra o último dia de um período com fim exclusivo", () => {
+    expect(dayBefore("2026-12-01")).toBe("2026-11-30");
+    expect(dayBefore("2027-01-01")).toBe("2026-12-31");
+    expect(dayBefore("2028-03-01")).toBe("2028-02-29");
   });
 });
