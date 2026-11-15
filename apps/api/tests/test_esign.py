@@ -433,3 +433,44 @@ def test_documenso_webhook_rejected_when_secret_not_configured(client, env, docu
     monkeypatch.setattr(get_settings(), "documenso_webhook_secret", None)
     r = client.post(f"{API}/webhooks/esign/documenso", content=b"{}", headers={"x-documenso-secret": ""})
     assert r.status_code in (401, 404)  # sem segredo o provedor nem fica disponível
+
+
+def test_pdf_is_deterministic():
+    """Mesmo contrato, mesmos bytes, mesmo em segundos diferentes (hash enviado = prévia)."""
+    import time
+    from dataclasses import replace
+    from datetime import date
+    from decimal import Decimal
+
+    from app.services.contract_pdf import ContractDoc, render
+
+    d = ContractDoc(
+        company_name="Loteadora",
+        number="C-1",
+        version=1,
+        customer_name="Comprador",
+        customer_document=None,
+        broker_name=None,
+        development_name="Residencial",
+        block_code="A",
+        lot_number="01",
+        area_m2=Decimal("300"),
+        total_price=Decimal("90000"),
+        down_payment=Decimal("9000"),
+        installments_count=10,
+        installment_amount=Decimal("8100"),
+        amortization="price",
+        interest_monthly_pct=Decimal("1"),
+        first_due_date=None,
+        adjustment_index="nenhum",
+        late_fee_pct=Decimal("2"),
+        late_interest_monthly_pct=Decimal("1"),
+        notes=None,
+        company_signer="Alice",
+        issued_on=date(2026, 11, 15),
+    )
+    a, _ = render(d)
+    time.sleep(1.1)
+    b, _ = render(d)
+    assert a == b
+    assert render(replace(d, version=2))[0] != a
