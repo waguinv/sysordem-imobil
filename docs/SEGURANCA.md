@@ -65,6 +65,12 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 - Faturas da assinatura só são quitadas por webhook com assinatura do PSP, deduplicado por evento (`billing_events`); redirect ou "simular" fora do sandbox não existem.
 - Suspensão bloqueia escrita no servidor (402) para qualquer rota, não só na interface.
 
+## Assinatura eletrônica
+- Enviar para assinatura exige `contracts:sign` (a conclusão assina o contrato).
+- Webhook do Documenso: segredo em tempo constante, deduplicação, empresa pela referência do envelope + RLS, e a
+  conclusão/recusa é confirmada na API do provedor antes de qualquer efeito. Sem segredo configurado o provedor fica
+  desabilitado. Simulador desligado em produção. Ver [ASSINATURA_ELETRONICA.md](ASSINATURA_ELETRONICA.md).
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.

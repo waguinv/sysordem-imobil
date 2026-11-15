@@ -15,3 +15,6 @@ next-env.d.ts
 *.tsbuildinfo
 tools/pg-local/data/
 .DS_Store
+
+# certificado de assinatura do Documenso (nunca no Git)
+*.p12

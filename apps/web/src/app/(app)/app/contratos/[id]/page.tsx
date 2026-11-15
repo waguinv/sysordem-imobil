@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContractChanges } from "@/components/contracts/contract-changes";
+import { EsignPanel } from "@/components/contracts/esign-panel";
 import { TermsFields } from "@/components/contracts/terms-fields";
 import { InstallmentsTable } from "@/components/finance/installments-table";
 import { ActionForm, Field } from "@/components/ui/action-form";
@@ -18,7 +19,14 @@ import {
 import { cancelContractAction, newVersionAction, signContractAction } from "@/lib/actions-fase2b";
 import { ADJUSTMENT_INDEX, brl, CONTRACT_STATUS, dateBR, dateTime, pct } from "@/lib/format";
 import { api, ApiError, can, getMe } from "@/lib/session";
-import type { ContractDetail, ContractPolicy, ContractTerms, Installment } from "@/lib/types";
+import type {
+  ContractDetail,
+  ContractPolicy,
+  ContractTerms,
+  Installment,
+  EsignProvider,
+  SignatureRequest,
+} from "@/lib/types";
 
 export const metadata: Metadata = { title: "Contrato" };
 
@@ -68,8 +76,14 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
   }
   const st = CONTRACT_STATUS[c.status]!;
   const draft = c.status === "rascunho";
-  const manage = can(me, "contracts:manage") && draft;
-  const sign = can(me, "contracts:sign") && draft;
+  const [providers, signatures] = await Promise.all([
+    api<EsignProvider[]>("/esign/providers"),
+    api<SignatureRequest[]>(`/contracts/${c.id}/signature-requests`),
+  ]);
+  // Com envio para assinatura eletrônica em andamento, o contrato só muda por ele (cancele o envio antes).
+  const esignActive = signatures.some((r) => r.status === "enviando" || r.status === "enviado");
+  const manage = can(me, "contracts:manage") && draft && !esignActive;
+  const sign = can(me, "contracts:sign") && draft && !esignActive;
   const installments =
     (c.status === "assinado" || c.status === "distratado") && can(me, "finance:view")
       ? await api<Installment[]>(`/contracts/${c.id}/installments`)
@@ -117,16 +131,25 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
         </CardContent>
       </Card>
 
+      <EsignPanel
+        contractId={c.id}
+        version={c.current_version}
+        draft={draft}
+        canSign={can(me, "contracts:sign")}
+        providers={providers}
+        requests={signatures}
+      />
+
       {(sign || manage) && (
         <div className="grid gap-4 lg:grid-cols-2">
           {sign && (
             <Card>
               <CardHeader>
                 <div>
-                  <CardTitle>Registrar assinatura</CardTitle>
+                  <CardTitle>Registrar assinatura manual</CardTitle>
                   <CardDescription>
-                    Confirme que o comprador assinou a versão {c.current_version}. O lote passa a vendido e as
-                    condições ficam congeladas.
+                    Para contrato assinado em papel: confirme que o comprador assinou a versão{" "}
+                    {c.current_version}. O lote passa a vendido e as condições ficam congeladas.
                   </CardDescription>
                 </div>
               </CardHeader>

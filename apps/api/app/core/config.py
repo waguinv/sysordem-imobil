@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     # Janela aceita para o carimbo de tempo do webhook (proteção contra replay)
     payments_webhook_tolerance_seconds: int = 300
 
+    # Assinatura eletrônica. Provedor real: Documenso auto-hospedado (API v2). O simulador ("sandbox")
+    # fica fora de produção por padrão, como o de pagamentos.
+    documenso_url: str | None = None  # ex.: https://assinar.suaempresa.com.br (sem /api/v2)
+    documenso_api_token: str | None = None
+    documenso_webhook_secret: str | None = Field(default=None, min_length=32)
+    esign_sandbox_enabled: bool | None = None
+    esign_http_timeout_seconds: float = 20.0
+
     # Site público (Fase 5a): limite do formulário de contato (por empresa e por contato)
     public_leads_per_tenant_per_hour: int = 60
     public_leads_per_contact_per_hour: int = 3
@@ -71,6 +79,15 @@ class Settings(BaseSettings):
             raise ValueError("PAYMENTS_SANDBOX_SECRET ainda está com o valor de exemplo")
         return v
 
+    @field_validator("documenso_url", "documenso_api_token", "documenso_webhook_secret", mode="before")
+    @classmethod
+    def _blank_documenso(cls, v: str | None) -> str | None:
+        if v is None or not str(v).strip():
+            return None  # vazio = assinatura eletrônica real não configurada
+        if str(v).upper().startswith("CHANGE_ME"):
+            raise ValueError("Configuração do Documenso ainda está com o valor de exemplo")
+        return str(v).strip()
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -86,6 +103,16 @@ class Settings(BaseSettings):
         if self.is_production:
             return False
         return True if self.billing_sandbox_enabled is None else self.billing_sandbox_enabled
+
+    @property
+    def esign_sandbox(self) -> bool:
+        if self.is_production:
+            return False
+        return True if self.esign_sandbox_enabled is None else self.esign_sandbox_enabled
+
+    @property
+    def documenso_configured(self) -> bool:
+        return bool(self.documenso_url and self.documenso_api_token and self.documenso_webhook_secret)
 
     @property
     def sandbox_enabled(self) -> bool:

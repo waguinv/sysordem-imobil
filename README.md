@@ -12,6 +12,7 @@ SaaS multiempresa para gestão de loteamentos de terrenos e chácaras: empreendi
 > suspensão por atraso).
 > Ainda **não** há PSP real (Fase 4c), console do operador SaaS nem correção monetária.
 > Não use dados reais nem publique em produção — ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
+> **Assinatura eletrônica:** contratos enviados ao Documenso auto-hospedado (ou ao simulador em desenvolvimento) — ver [docs/ASSINATURA_ELETRONICA.md](docs/ASSINATURA_ELETRONICA.md).
 
 ## Stack
 - **Web**: Next.js 16 + React 19 + TypeScript + Tailwind CSS 4 (identidade SysOrdem), mobile-first.

@@ -138,6 +138,14 @@ Identidade e acesso; tenants/memberships; empreendimentos e proprietários; quad
 - Web: `/cadastro` (planos + formulário; link na tela de login), aviso de teste/atraso/suspensão no topo, cartão Primeiros passos e Configurações → Assinatura (uso × limites, faturas, Pix/boleto, simular no sandbox, trocar plano, cancelar/reativar).
 - **Limitações**: sem console do operador SaaS (ver/ajustar empresas, conceder cortesia, estornar fatura) — hoje via banco; sem nota fiscal da assinatura; sem e-mail de cobrança; preços e limites são hipóteses.
 
+## Assinatura eletrônica de contratos (Documenso)
+- Adaptador `app/services/esign/` (interface + Documenso API v2 + simulador fora de produção), mesmo padrão do PSP.
+- Tabela `signature_requests` (RLS; migration `0015`): envio por versão do contrato com SHA-256 do PDF; um envio em
+  andamento por contrato (índice único parcial). Notificações reutilizam `webhook_events` (provedor `esign:<nome>`).
+- PDF do quadro-resumo gerado com `fpdf2` (`app/services/contract_pdf.py`).
+- Conclusão só após confirmação na API do provedor; assina o contrato pelo mesmo `contracts.sign` (via_esign) se a versão
+  não mudou. Detalhes, implantação e rotas: [ASSINATURA_ELETRONICA.md](ASSINATURA_ELETRONICA.md).
+
 ## Padrões obrigatórios
 - API versionada `/api/v1`; PostgreSQL como fonte transacional.
 - `NUMERIC` no banco e `Decimal` na aplicação para dinheiro.
