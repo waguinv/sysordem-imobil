@@ -590,3 +590,19 @@ export type ReconSummary = {
   since: string;
   last_import_at: string | null;
 };
+
+export type EsignProvider = { name: string; label: string; sandbox: boolean };
+
+export type SignatureRequest = {
+  id: string;
+  contract_id: string;
+  contract_version: number;
+  provider: string;
+  status: "enviando" | "enviado" | "assinado" | "recusado" | "cancelado" | "erro";
+  document_sha256: string;
+  signers: { name: string; email: string; role: string; status: string; signed_at: string | null }[];
+  detail: string | null;
+  created_at: string;
+  completed_at: string | null;
+  closed_at: string | null;
+};

@@ -232,6 +232,24 @@ def _lock_contract(db: Session, tenant_id: uuid.UUID, contract_id: uuid.UUID) ->
     return c, lot
 
 
+lock_contract = _lock_contract  # usado pela assinatura eletrônica (mesma ordem de travas)
+
+
+def _require_no_esign(db: Session, c: SalesContract) -> None:
+    """Com envio para assinatura eletrônica em andamento, o contrato não muda por fora dele."""
+    from app.models import SignatureRequest  # import local: evita ciclo
+
+    active = db.scalar(
+        select(SignatureRequest.id).where(
+            SignatureRequest.tenant_id == c.tenant_id,
+            SignatureRequest.contract_id == c.id,
+            SignatureRequest.status.in_(("enviando", "enviado")),
+        )
+    )
+    if active is not None:
+        raise ContractError("Há um envio para assinatura eletrônica em andamento. Cancele o envio antes.")
+
+
 def _require_draft(c: SalesContract) -> None:
     if c.status != "rascunho":
         raise ContractError(f"Contrato não está em rascunho (situação: {c.status})")
@@ -249,6 +267,7 @@ def new_version(
 ) -> SalesContract:
     c, _lot = _lock_contract(db, tenant_id, contract_id)
     _require_draft(c)
+    _require_no_esign(db, c)
     if c.current_version != expected_version:
         raise ContractError("O contrato foi alterado por outra pessoa. Recarregue a página.")
     current = db.scalar(
@@ -280,10 +299,13 @@ def sign(
     expected_version: int,
     actor: uuid.UUID,
     reason: str,
+    via_esign: bool = False,
 ) -> SalesContract:
-    """Registra a assinatura (manual nesta fase; assinatura eletrônica entra como integração futura)."""
+    """Registra a assinatura: manual (quem registrou) ou concluída pelo provedor de assinatura eletrônica."""
     c, lot = _lock_contract(db, tenant_id, contract_id)
     _require_draft(c)
+    if not via_esign:
+        _require_no_esign(db, c)
     if c.current_version != expected_version:
         raise ContractError("As condições mudaram desde que você abriu o contrato. Revise antes de assinar.")
     c.status = "assinado"
@@ -314,7 +336,10 @@ def sign(
         entity="contract",
         entity_id=c.id,
         reason=reason,
-        data={"version": c.current_version},
+        data={
+            "version": c.current_version,
+            "via": "assinatura_eletronica" if via_esign else "registro_manual",
+        },
     )
     return c
 
@@ -326,6 +351,7 @@ def cancel(
     if c.status == "assinado":
         raise ContractError("Contrato assinado só pode ser desfeito por distrato (Fase 3)")
     _require_draft(c)
+    _require_no_esign(db, c)
     c.status = "cancelado"
     c.cancelled_at = datetime.now(UTC)
     c.cancel_reason = reason

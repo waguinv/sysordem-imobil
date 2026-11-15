@@ -14,6 +14,7 @@ from app.api.v1 import (
     contracts,
     crm,
     developments,
+    esign,
     finance,
     payables,
     portal,
@@ -25,7 +26,7 @@ from app.api.v1 import (
 from app.core.config import get_settings
 from app.core.db import get_engine
 
-VERSION = "0.13.0"
+VERSION = "0.14.0"
 log = logging.getLogger("imobil.api")
 
 settings = get_settings()
@@ -93,4 +94,5 @@ v1.include_router(site.router)
 v1.include_router(site.public)
 v1.include_router(portal.router)
 v1.include_router(billing.router)
+v1.include_router(esign.router)
 app.include_router(v1)

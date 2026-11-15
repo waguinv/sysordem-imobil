@@ -106,6 +106,15 @@
 - Atraso (grava) → suspensão (402 em alterações, leitura liberada, assinatura regularizável) → pagamento reabre; cancelamento mantém até o fim e depois só consulta; reativação volta a faturar.
 - Primeiros passos; isolamento (empresa B), RBAC (admin vê, não altera; comercial só vê o aviso), RLS nas 3 tabelas, `plans` global só leitura e `tenants` sem UPDATE/INSERT fora de (id, slug, name).
 
+## Implementado (assinatura eletrônica) — `tests/test_esign.py`
+- Envio com hash do PDF (igual à prévia), signatários comprador/empresa e auditoria; exige rascunho, versão atual e e-mail do comprador.
+- Contrato congelado durante o envio (nova versão, cancelar e assinatura manual → 409; segundo envio → 409).
+- Todos assinam → contrato assinado (via assinatura eletrônica), lote vendido e cronograma gerado; recusa mantém rascunho e permite reenviar; cancelar envio libera o contrato.
+- Webhook: assinatura inválida/ausente → 401; "concluído" sem confirmação no provedor não assina; reenvio deduplicado; referência para outra empresa ou de fora do sistema é ignorada.
+- Isolamento entre empresas e permissões (comercial e leitura não enviam; admin cancela).
+- Adaptador Documenso contra servidor falso (create → distribute → GET envelope; segredo do webhook; sem segredo, provedor desabilitado).
+- `tests/test_db_dependency.py` agora cobre todos os routers de `app.api.v1`.
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.

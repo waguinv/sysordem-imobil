@@ -848,3 +848,29 @@ class BillingEvent(Base):
         JSON().with_variant(JSONB(), "postgresql"), nullable=False
     )
     created_at: Mapped[datetime] = _created_at()
+
+
+# ───────────────────────── Assinatura eletrônica (Documenso) ─────────────────────────
+
+
+class SignatureRequest(Base):
+    """Envio de um contrato para assinatura eletrônica. Vale para UMA versão das condições (hash do PDF)."""
+
+    __tablename__ = "signature_requests"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    contract_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    contract_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    provider: Mapped[str] = mapped_column(String(30), nullable=False)
+    external_id: Mapped[str | None] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="enviando")
+    document_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    signers: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=False, default=list
+    )
+    detail: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

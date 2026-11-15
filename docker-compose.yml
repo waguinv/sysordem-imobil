@@ -39,6 +39,10 @@ services:
       ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-60}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       PAYMENTS_SANDBOX_SECRET: ${PAYMENTS_SANDBOX_SECRET:-}
+      # Assinatura eletrônica (opcional): Documenso auto-hospedado — ver docs/ASSINATURA_ELETRONICA.md
+      DOCUMENSO_URL: ${DOCUMENSO_URL:-}
+      DOCUMENSO_API_TOKEN: ${DOCUMENSO_API_TOKEN:-}
+      DOCUMENSO_WEBHOOK_SECRET: ${DOCUMENSO_WEBHOOK_SECRET:-}
     ports: ["${API_PORT:-8000}:8000"]
     depends_on:
       migrate:
@@ -55,7 +59,56 @@ services:
     restart: unless-stopped
     networks: [internal]
 
+  # ── Assinatura eletrônica (opcional): docker compose --profile assinatura up ──
+  documenso-db:
+    profiles: [assinatura]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: documenso
+      POSTGRES_USER: documenso
+      POSTGRES_PASSWORD: ${DOCUMENSO_DB_PASSWORD:-}
+    volumes:
+      - documenso_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U documenso -d documenso"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [internal]
+
+  documenso:
+    profiles: [assinatura]
+    # Fixe uma versão testada em produção (ex.: documenso/documenso:v1.13.2)
+    image: ${DOCUMENSO_IMAGE:-documenso/documenso:latest}
+    environment:
+      NEXTAUTH_SECRET: ${DOCUMENSO_NEXTAUTH_SECRET:-}
+      NEXT_PRIVATE_ENCRYPTION_KEY: ${DOCUMENSO_ENCRYPTION_KEY:-}
+      NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY: ${DOCUMENSO_ENCRYPTION_SECONDARY_KEY:-}
+      NEXT_PUBLIC_WEBAPP_URL: ${DOCUMENSO_PUBLIC_URL:-http://localhost:3005}
+      NEXT_PRIVATE_INTERNAL_WEBAPP_URL: http://localhost:3000
+      NEXT_PRIVATE_DATABASE_URL: postgresql://documenso:${DOCUMENSO_DB_PASSWORD:-}@documenso-db:5432/documenso
+      NEXT_PRIVATE_DIRECT_DATABASE_URL: postgresql://documenso:${DOCUMENSO_DB_PASSWORD:-}@documenso-db:5432/documenso
+      NEXT_PRIVATE_SIGNING_PASSPHRASE: ${DOCUMENSO_SIGNING_PASSPHRASE:-}
+      NEXT_PRIVATE_SMTP_TRANSPORT: smtp-auth
+      NEXT_PRIVATE_SMTP_HOST: ${SMTP_HOST:-}
+      NEXT_PRIVATE_SMTP_PORT: ${SMTP_PORT:-587}
+      NEXT_PRIVATE_SMTP_USERNAME: ${SMTP_USERNAME:-}
+      NEXT_PRIVATE_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      NEXT_PRIVATE_SMTP_FROM_NAME: ${SMTP_FROM_NAME:-SysOrdem Imobil}
+      NEXT_PRIVATE_SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+    volumes:
+      # certificado .p12 que sela os PDFs assinados (ver docs/ASSINATURA_ELETRONICA.md)
+      - ${DOCUMENSO_CERT_PATH:-./docker/documenso/cert.p12}:/opt/documenso/cert.p12:ro
+    ports: ["${DOCUMENSO_PORT:-3005}:3000"]
+    depends_on:
+      documenso-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [internal]
+
 volumes:
   postgres_data:
+  documenso_data:
 networks:
   internal:
