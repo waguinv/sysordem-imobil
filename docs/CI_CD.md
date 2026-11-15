@@ -22,9 +22,43 @@ Proteja a `main` no GitHub (Settings ▸ Branches): exigir PR, os três jobs ver
 `release.yml` publica `ghcr.io/<dono>/sysordem-imobil-api:sha-<7>` e `...-web:sha-<7>` a cada push na main. A tag é
 o commit, então qualquer versão pode ser reimplantada exatamente igual (sem `latest`).
 
+## Domínios e o que já está configurado (15/11/2026)
+| | Produção | Staging |
+|---|---|---|
+| `WEB_DOMAIN` | `imobil.sysordemsistemas.com.br` | `staging.imobil.sysordemsistemas.com.br` |
+| `API_DOMAIN` (só webhooks) | `api.imobil.sysordemsistemas.com.br` | `api.staging.imobil.sysordemsistemas.com.br` |
+| `CORS_ORIGINS` | `["https://imobil.sysordemsistemas.com.br"]` | `["https://staging.imobil.sysordemsistemas.com.br"]` |
+
+DNS hoje: `imobil.sysordemsistemas.com.br` já aponta para `200.141.27.53` — confirme que é o servidor (VPS com
+Docker) que vai rodar a produção; se for outra hospedagem, aponte para a VPS. Faltam os registros A (ou CNAME) de
+`api.imobil`, `staging.imobil` e `api.staging.imobil`. O Caddy só emite o HTTPS depois que o DNS resolver.
+
+No GitHub (`waguinv/sysordem-imobil`) já estão criados:
+- environments `staging` e `production`, ambos só aceitando deploy da `main`; `production` exige aprovação de
+  `waguinv`;
+- variáveis por environment: `DEPLOY_USER=deploy`, `DEPLOY_DIR=/opt/sysordem-imobil` e `WEB_DOMAIN` (referência);
+- variável do repositório `DEPLOY_ENABLED=true`.
+
+Falta, em cada environment: variável `DEPLOY_HOST` (IP ou nome do servidor) e segredos `DEPLOY_SSH_KEY` e
+`DEPLOY_KNOWN_HOSTS`. Enquanto faltarem, o push na `main` publica as imagens e o deploy termina com aviso
+(sem erro); um disparo manual falha com a lista do que falta.
+
 ## Servidor (staging e produção)
 Um servidor Linux por ambiente, com Docker Engine + Compose v2.24+.
-1. Clone o repositório em, por exemplo, `/opt/sysordem-imobil` (só `docker-compose.yml` e `deploy/` são usados).
+1. Prepare o acesso de deploy (no servidor, como root):
+   ```bash
+   adduser --disabled-password --gecos "" deploy && usermod -aG docker deploy
+   install -d -o deploy -g deploy /opt/sysordem-imobil
+   sudo -u deploy git clone https://github.com/waguinv/sysordem-imobil.git /opt/sysordem-imobil
+   ```
+   No seu computador, gere uma chave só para o deploy e instale a pública no servidor:
+   ```bash
+   ssh-keygen -t ed25519 -N "" -C "github-deploy-imobil" -f deploy_imobil
+   ssh-copy-id -i deploy_imobil.pub deploy@<servidor>
+   ssh-keyscan -t ed25519 <servidor>   # confira a impressão digital com o provedor antes de usar
+   ```
+   Cadastre no environment: `DEPLOY_HOST=<servidor>`, segredo `DEPLOY_SSH_KEY` = conteúdo de `deploy_imobil`
+   (privada) e `DEPLOY_KNOWN_HOSTS` = saída do `ssh-keyscan`. Depois apague a chave privada do computador.
 2. Crie o `.env` a partir do `.env.example` com segredos próprios do ambiente e:
    - `ENVIRONMENT=staging` ou `production` (produção recusa subir com valores de desenvolvimento — ver SEGURANCA.md);
    - `WEB_DOMAIN`, `API_DOMAIN` (DNS apontando para o servidor; o Caddy emite o HTTPS);
