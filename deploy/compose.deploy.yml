@@ -1,0 +1,39 @@
+# Sobreposição para STAGING e PRODUÇÃO (ver docs/CI_CD.md):
+#   docker compose -f docker-compose.yml -f deploy/compose.deploy.yml ...
+# - usa as imagens publicadas pelo CI no GHCR (IMAGE_TAG = sha do commit), sem build no servidor;
+# - HTTPS automático pelo Caddy; API e web sem porta pública (só o Caddy fala com eles);
+# - da API, só webhooks e /health ficam expostos na internet (o resto passa pelo web/BFF).
+services:
+  migrate:
+    image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-api:${IMAGE_TAG:?defina IMAGE_TAG}
+  api:
+    image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    ports: !reset []
+    environment:
+      # Só o Caddy (rede interna) alcança a API, então o X-Forwarded-For dele é confiável.
+      FORWARDED_ALLOW_IPS: "*"
+  web:
+    image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-web:${IMAGE_TAG:?defina IMAGE_TAG}
+    ports: !reset []
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      WEB_DOMAIN: ${WEB_DOMAIN:?defina WEB_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?defina API_DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [internal, public]
+
+networks:
+  public: {}
+
+volumes:
+  caddy_data:
+  caddy_config:

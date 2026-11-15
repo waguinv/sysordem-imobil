@@ -426,6 +426,8 @@ def test_billing_sandbox_is_separate_from_tenant_sandbox(client, nova, owner_eng
     assert client.post(f"{API}/webhooks/billing/sandbox/{tid}", content=b"{}").status_code == 404
     # em produção: nunca liga (e configurar ligado é erro)
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("JWT_SECRET", "p" * 64)
+    monkeypatch.setenv("CORS_ORIGINS", '["https://app.exemplo.com.br"]')
     assert Settings().billing_sandbox is False  # type: ignore[call-arg]
     monkeypatch.setenv("BILLING_SANDBOX_ENABLED", "true")
     with pytest.raises(ValueError, match="BILLING_SANDBOX_ENABLED"):

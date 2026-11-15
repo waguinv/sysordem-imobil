@@ -47,7 +47,7 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 - A empresa vem da URL (cada empresa cadastra a própria URL no PSP). Depois da assinatura, o contexto RLS é definido para ela e a cobrança é procurada **só dentro dela**: um evento válido com a URL de outra empresa não encontra nada (testado).
 - **Deduplicação**: `webhook_events` com índice único (empresa, provedor, id do evento) — reenvio responde `duplicado` sem efeito. **Idempotência**: cobrança já paga ignora novos pagamentos. Entregas simultâneas: trava da cobrança (`FOR UPDATE`) + índice único (testado com duas transações em paralelo).
 - Resposta 2xx sempre que o evento foi aceito (inclusive ignorado/duplicado/divergente) para o PSP não reenviar; erro inesperado → 5xx e rollback, e o PSP reenvia.
-- Segredo: `PAYMENTS_SANDBOX_SECRET` (≥ 32 caracteres, fora do Git). Sem ele, o sandbox gera um segredo aleatório por processo (serve para o simulador; webhooks externos exigem o fixo). O sandbox fica **desligado em produção** (`PAYMENTS_SANDBOX_ENABLED=true` força).
+- Segredo: `PAYMENTS_SANDBOX_SECRET` (≥ 32 caracteres, fora do Git). Sem ele, o sandbox gera um segredo aleatório por processo (serve para o simulador; webhooks externos exigem o fixo). O sandbox fica **desligado em produção** (desde a Fase 6a, `PAYMENTS_SANDBOX_ENABLED=true` em produção impede a API de subir).
 - **PSP real (4c)**: credenciais por empresa em cofre/variáveis de ambiente (nunca em texto puro no banco), segredo de webhook por empresa e, se o PSP oferecer, mTLS/lista de IPs. Hoje o segredo do sandbox é único da plataforma.
 
 ## Site público (Fase 5a)
@@ -71,10 +71,32 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
   conclusão/recusa é confirmada na API do provedor antes de qualquer efeito. Sem segredo configurado o provedor fica
   desabilitado. Simulador desligado em produção. Ver [ASSINATURA_ELETRONICA.md](ASSINATURA_ELETRONICA.md).
 
+## Camada HTTP e configuração (Fase 6a)
+- Middleware ASGI (`app/core/http.py`) em todas as respostas da API, inclusive erros: `X-Content-Type-Options`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `CSP default-src 'none'` nas rotas da API,
+  `Cache-Control: no-store` em `/api/*` e HSTS em produção.
+- **Id de requisição** (`X-Request-ID`): aceita o recebido só se tiver 8–64 caracteres seguros (senão gera outro —
+  evita injeção de cabeçalho/log) e devolve na resposta; vai em toda linha de log.
+- **Limite de corpo** global (`MAX_BODY_BYTES`, 5 MB): por `Content-Length` e também contando o fluxo real (corpo
+  chunked) → 413.
+- **Limite de taxa nos webhooks** (`WEBHOOK_RATE_PER_MINUTE`, 600/min por IP) → 429 com `Retry-After`. As demais
+  rotas chegam pelo BFF (mesmo IP) e têm limites próprios por empresa/e-mail. Em memória do processo.
+- **Logs estruturados** (JSON em staging/produção): método, caminho (sem query string), status, duração e id da
+  requisição. Sem corpo, tokens ou dados pessoais; o log de acesso do uvicorn fica desligado.
+- Banco fora do ar falha em ~5 s (`connect_timeout`) — `/ready` responde 503 em vez de pendurar.
+- **Travas de produção** (`ENVIRONMENT=production`): a API não sobe se `DATABASE_URL` usar senha de exemplo ou o
+  mesmo papel das migrations, se `CORS_ORIGINS` não for https, se algum simulador (PSP/assinatura/cobrança) for
+  ligado ou se `JWT_SECRET` tiver menos de 48 caracteres.
+- Web: **CSP com nonce por requisição** (`src/proxy.ts`): scripts só do próprio Next (`'strict-dynamic'`), sem
+  `unsafe-eval` em produção, `frame-ancestors 'none'`, `form-action 'self'`; estilos com `'unsafe-inline'` (atributos
+  `style` do mapa). Todas as páginas passam a ser dinâmicas (o nonce exige).
+- Containers da API e do web: usuário sem privilégio, `no-new-privileges`, `cap_drop: ALL`, healthcheck.
+- CI: pip-audit, npm audit, gitleaks, Trivy e shellcheck — ver [CI_CD.md](CI_CD.md).
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.
 - Convite de usuário por e-mail (hoje a senha inicial é definida por quem cria o vínculo) e redefinição de senha.
-- Rate limit na rota pública de webhooks e limite por IP no formulário do site.
+- Limite por IP no formulário do site (exige proxy confiável repassando o IP do visitante ao web).
 - Onboarding de empresas (hoje via seed/SQL administrativo).
-- CSP com nonce no web, logs estruturados sem dados pessoais, monitoramento e alertas.
+- Monitoramento e alertas (métricas, erro 5xx, fila de webhooks, backup que falhou).

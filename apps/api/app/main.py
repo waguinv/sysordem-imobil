@@ -25,15 +25,23 @@ from app.api.v1 import (
 )
 from app.core.config import get_settings
 from app.core.db import get_engine
+from app.core.http import RateLimiter, SecurityMiddleware, configure_logging
 
-VERSION = "0.14.0"
+VERSION = "0.15.0"
 log = logging.getLogger("imobil.api")
 
 settings = get_settings()
+if settings.environment != "test":
+    configure_logging(settings.effective_log_format, settings.log_level)
+webhook_limiter = (
+    RateLimiter(settings.webhook_rate_per_minute) if settings.webhook_rate_per_minute > 0 else None
+)
 app = FastAPI(
     title="SysOrdem Imobil API",
     version=VERSION,
     docs_url=None if settings.is_production else "/docs",
+    # em produção o esquema da API também não fica público (mapa de rotas para quem ataca)
+    openapi_url=None if settings.is_production else "/openapi.json",
     redoc_url=None,
 )
 app.add_middleware(
@@ -42,6 +50,13 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
+)
+# Fica por fora do CORS: vale também para respostas de erro e para os 413/429 que ele mesmo gera.
+app.add_middleware(
+    SecurityMiddleware,
+    production=settings.is_production,
+    max_body_bytes=settings.max_body_bytes,
+    webhook_limiter=webhook_limiter,
 )
 
 
@@ -75,7 +90,7 @@ v1 = APIRouter(prefix="/api/v1")
 
 @v1.get("", tags=["meta"])
 def api_root() -> dict[str, str]:
-    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "5c"}
+    return {"name": "SysOrdem Imobil API", "version": VERSION, "phase": "6a"}
 
 
 v1.include_router(auth.router)

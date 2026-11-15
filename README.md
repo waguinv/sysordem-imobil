@@ -10,6 +10,9 @@ SaaS multiempresa para gestão de loteamentos de terrenos e chácaras: empreendi
 > parcelas, 2ª via Pix/boleto e informe anual de pagamentos, com acesso por convite); **planos SaaS**
 > (cadastro self-service com 14 dias de teste, limites por plano, faturas mensais por Pix/boleto e
 > suspensão por atraso).
+> **Fase 6a:** cabeçalhos de segurança, CSP com nonce, limites de corpo/taxa, logs estruturados, travas de
+> configuração de produção, CI com auditoria de dependências/segredos/imagens e deploy com staging, backup e rollback
+> ([docs/CI_CD.md](docs/CI_CD.md)).
 > Ainda **não** há PSP real (Fase 4c), console do operador SaaS nem correção monetária.
 > Não use dados reais nem publique em produção — ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 > **Assinatura eletrônica:** contratos enviados ao Documenso auto-hospedado (ou ao simulador em desenvolvimento) — ver [docs/ASSINATURA_ELETRONICA.md](docs/ASSINATURA_ELETRONICA.md).

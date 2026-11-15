@@ -435,9 +435,13 @@ def test_sandbox_disabled_in_production(monkeypatch):
     from app.core.config import Settings
 
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("JWT_SECRET", "p" * 64)
+    monkeypatch.setenv("CORS_ORIGINS", '["https://app.exemplo.com.br"]')
     assert Settings().sandbox_enabled is False  # type: ignore[call-arg]
+    # Fase 6a: em produção o sandbox não pode mais ser forçado
     monkeypatch.setenv("PAYMENTS_SANDBOX_ENABLED", "true")
-    assert Settings().sandbox_enabled is True  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="PAYMENTS_SANDBOX_ENABLED"):
+        Settings()  # type: ignore[call-arg]
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.delenv("PAYMENTS_SANDBOX_ENABLED")
     assert Settings().sandbox_enabled is True  # type: ignore[call-arg]
