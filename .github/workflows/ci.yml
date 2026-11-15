@@ -90,14 +90,14 @@ jobs:
           docker build -t imobil-api:ci apps/api
           docker build -t imobil-web:ci apps/web
       - name: Varredura das imagens (CVEs críticas com correção)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           image-ref: imobil-api:ci
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           image-ref: imobil-web:ci
