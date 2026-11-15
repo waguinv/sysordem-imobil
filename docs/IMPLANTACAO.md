@@ -18,7 +18,7 @@ Atenção: `docker compose down -v` apaga o volume de dados local.
 - `python -m scripts.expire_reservations` a cada ~5 minutos (mesmas variáveis da API). Ex.: `docker compose run --rm api python -m scripts.expire_reservations` via cron/agendador.
 
 ## Staging e produção
-Imagens do GHCR, HTTPS pelo Caddy, deploy com backup prévio, verificação de saúde e rollback automático —
+Imagens do GHCR, HTTPS pelo nginx do servidor (staging e produção no mesmo servidor), deploy com backup prévio, verificação de saúde e rollback automático —
 ver [CI_CD.md](CI_CD.md) (`deploy/deploy.sh`, `deploy/backup.sh`, `deploy/restore.sh`).
 
 ## Checklist de produção

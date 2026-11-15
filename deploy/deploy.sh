@@ -60,7 +60,6 @@ fi
 
 log "subindo api e web"
 "${COMPOSE[@]}" up -d --no-deps api web
-"${COMPOSE[@]}" up -d caddy
 
 if healthy; then
   if [ "$CURRENT" != "$TAG" ]; then
