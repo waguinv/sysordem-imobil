@@ -38,6 +38,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET no .env}
       ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-60}
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      LOG_FORMAT: ${LOG_FORMAT:-}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
       PAYMENTS_SANDBOX_SECRET: ${PAYMENTS_SANDBOX_SECRET:-}
       # Assinatura eletrônica (opcional): Documenso auto-hospedado — ver docs/ASSINATURA_ELETRONICA.md
       DOCUMENSO_URL: ${DOCUMENSO_URL:-}
@@ -48,6 +51,8 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
     networks: [internal]
 
   web:
@@ -55,8 +60,12 @@ services:
     environment:
       API_INTERNAL_URL: http://api:8000
     ports: ["${WEB_PORT:-3000}:3000"]
-    depends_on: [api]
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
     networks: [internal]
 
   # ── Assinatura eletrônica (opcional): docker compose --profile assinatura up ──

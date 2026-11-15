@@ -22,7 +22,14 @@ TENANT_KEY = "tenant_id"
 
 @lru_cache
 def get_engine() -> Engine:
-    return create_engine(get_settings().database_url, pool_pre_ping=True)
+    s = get_settings()
+    return create_engine(
+        s.database_url,
+        pool_pre_ping=True,
+        # Banco fora do ar deve falhar rápido (503 no /ready), não pendurar a requisição por minutos.
+        connect_args={"connect_timeout": s.db_connect_timeout_seconds},
+        pool_timeout=s.db_pool_timeout_seconds,
+    )
 
 
 @lru_cache

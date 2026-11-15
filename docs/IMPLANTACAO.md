@@ -17,6 +17,10 @@ Atenção: `docker compose down -v` apaga o volume de dados local.
 ## Tarefas agendadas
 - `python -m scripts.expire_reservations` a cada ~5 minutos (mesmas variáveis da API). Ex.: `docker compose run --rm api python -m scripts.expire_reservations` via cron/agendador.
 
+## Staging e produção
+Imagens do GHCR, HTTPS pelo Caddy, deploy com backup prévio, verificação de saúde e rollback automático —
+ver [CI_CD.md](CI_CD.md) (`deploy/deploy.sh`, `deploy/backup.sh`, `deploy/restore.sh`).
+
 ## Checklist de produção
 - Segredos em secret manager/variáveis protegidas, nunca as senhas de exemplo.
 - HTTPS, domínio e DNS; banco em rede privada.
@@ -24,7 +28,7 @@ Atenção: `docker compose down -v` apaga o volume de dados local.
 - Migrations controladas, backup automático criptografado e restauração testada.
 - Logs, métricas, alertas, política de retenção e plano de incidentes.
 - CORS/cookies, MFA para perfis críticos, storage privado e links temporários.
-- Staging separado, CI/CD, rollback e revisão de segurança.
+- Staging separado, CI/CD e rollback (Fase 6a — configurar environments e segredos no GitHub); revisão de segurança.
 - Revisão jurídica/contábil e processos LGPD com profissionais habilitados.
 
 **Não publicar como produto pronto:** a Fase 0 entrega autenticação, RBAC, isolamento por tenant (com RLS) e auditoria, mas ainda não há módulos de negócio, financeiro, integração bancária, onboarding, recuperação de senha nem as pendências listadas em [SEGURANCA.md](SEGURANCA.md).

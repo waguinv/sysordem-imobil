@@ -115,9 +115,21 @@
 - Adaptador Documenso contra servidor falso (create → distribute → GET envelope; segredo do webhook; sem segredo, provedor desabilitado).
 - `tests/test_db_dependency.py` agora cobre todos os routers de `app.api.v1`.
 
+## Implementado (Fase 6a) — `tests/test_fase6a.py`, `scripts/check_migrations.py`, `apps/web/tests/csp.test.ts`
+- Cabeçalhos de segurança em sucesso e erro; HSTS só em produção; `Cache-Control: no-store` na API.
+- `X-Request-ID`: ecoa id válido, troca id malformado (tentativa de injeção de cabeçalho).
+- Limite de corpo por `Content-Length` e por corpo chunked (413); `Content-Length` inválido (400).
+- Limite de taxa dos webhooks (429 + `Retry-After`), sem afetar outras rotas; janela deslizante e poda de chaves.
+- Log JSON com id da requisição e caminho sem query string.
+- Travas de produção: aceita configuração segura; recusa senha de exemplo, CORS http, simuladores ligados, JWT curto e
+  API com o papel das migrations.
+- Migrations: upgrade → downgrade base (sem tabelas restantes) → upgrade, RLS forçado em toda tabela com `tenant_id` (CI).
+- CSP do web: nonce, `strict-dynamic`, sem `unsafe-eval` em produção; verificado no navegador com build de produção
+  (login, navegação client-side, nenhuma violação de CSP).
+
 ## Planejado
 
 - Unitários: cálculos de parcelas/arredondamento; comissões; estados e expiração de reservas; duplicidade de conciliação.
-- Integração: migrations em banco limpo; contrato e geração de parcelas; reserva concorrente; webhook repetido; importação de extrato.
+- Integração: contrato e geração de parcelas; reserva concorrente; webhook repetido; importação de extrato.
 - Segurança: tenant A não acessa/edita tenant B; comprador não acessa contrato alheio; perfil sem permissão não baixa pagamento; DTO público sem dados privados.
-- Operação: backup/restauração; readiness; logs sem segredos; falha do PSP sem corromper o estado financeiro.
+- Operação (Fase 6b): restauração de backup testada no CI; carga; falha do PSP sem corromper o estado financeiro.

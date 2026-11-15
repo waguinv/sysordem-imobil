@@ -18,3 +18,6 @@ tools/pg-local/data/
 
 # certificado de assinatura do Documenso (nunca no Git)
 *.p12
+# Deploy: estado do servidor e backups locais
+.deploy/
+backups/

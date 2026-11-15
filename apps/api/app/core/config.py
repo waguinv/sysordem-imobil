@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     login_max_failures: int = 5
     login_window_seconds: int = 900
 
+    # Fase 6a: camada HTTP
+    max_body_bytes: int = 5 * 1024 * 1024  # extrato OFX/CSV de até 2 MB em JSON cabe com folga
+    webhook_rate_per_minute: int = 600  # por IP de origem, nas rotas /api/v1/webhooks/*
+    log_format: str | None = None  # "json" | "text"; padrão: json em produção/staging
+    log_level: str = "INFO"
+    db_connect_timeout_seconds: int = 5
+    db_pool_timeout_seconds: float = 10.0
+
     @field_validator("jwt_secret")
     @classmethod
     def _no_placeholder(cls, v: str) -> str:
@@ -97,6 +105,35 @@ class Settings(BaseSettings):
         if self.is_production and self.billing_sandbox_enabled:
             raise ValueError("BILLING_SANDBOX_ENABLED não pode ser ligado em produção")
         return self
+
+    @model_validator(mode="after")
+    def _production_guards(self) -> "Settings":
+        """Fase 6a: em produção, recusa subir com configuração de desenvolvimento."""
+        if not self.is_production:
+            return self
+        problems = []
+        if "local_only" in self.database_url or "CHANGE_ME" in self.database_url:
+            problems.append("DATABASE_URL usa a senha de exemplo")
+        if self.migration_database_url and self.migration_database_url == self.database_url:
+            problems.append("a API não pode usar o papel das migrations")
+        bad_origins = [o for o in self.cors_origins if not o.startswith("https://")]
+        if bad_origins:
+            problems.append(f"CORS_ORIGINS precisa ser https em produção: {bad_origins}")
+        if self.payments_sandbox_enabled:
+            problems.append("PAYMENTS_SANDBOX_ENABLED não pode ser ligado em produção")
+        if self.esign_sandbox_enabled:
+            problems.append("ESIGN_SANDBOX_ENABLED não pode ser ligado em produção")
+        if len(self.jwt_secret) < 48:
+            problems.append("JWT_SECRET deve ter 48+ caracteres em produção")
+        if problems:
+            raise ValueError("Configuração inválida para produção: " + "; ".join(problems))
+        return self
+
+    @property
+    def effective_log_format(self) -> str:
+        if self.log_format in ("json", "text"):
+            return self.log_format
+        return "json" if self.environment in ("production", "staging") else "text"
 
     @property
     def billing_sandbox(self) -> bool:
