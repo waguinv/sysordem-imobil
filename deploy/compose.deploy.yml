@@ -3,12 +3,17 @@
 # - usa as imagens publicadas pelo CI no GHCR (IMAGE_TAG = sha do commit), sem build no servidor;
 # - o HTTPS fica com o nginx do servidor (deploy/nginx/); web e API escutam SÓ em 127.0.0.1, em portas
 #   diferentes por ambiente, então staging e produção convivem no mesmo servidor;
-# - cada ambiente tem a própria pasta e COMPOSE_PROJECT_NAME no .env → containers, rede e volume do banco separados.
+# - cada ambiente tem a própria pasta e COMPOSE_PROJECT_NAME no .env → containers, rede e volume do banco separados;
+# - VPS compartilhada com outros sistemas: todo container tem limite de memória (não derruba os vizinhos).
 services:
+  db:
+    mem_limit: 384m
   migrate:
     image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    mem_limit: 256m
   api:
     image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    mem_limit: 384m
     ports: !override
       - "127.0.0.1:${API_HOST_PORT:?defina API_HOST_PORT}:8000"
     environment:
@@ -16,5 +21,6 @@ services:
       FORWARDED_ALLOW_IPS: "*"
   web:
     image: ghcr.io/${GHCR_OWNER:-waguinv}/sysordem-imobil-web:${IMAGE_TAG:?defina IMAGE_TAG}
+    mem_limit: 512m
     ports: !override
       - "127.0.0.1:${WEB_HOST_PORT:?defina WEB_HOST_PORT}:3000"

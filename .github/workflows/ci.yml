@@ -83,7 +83,7 @@ jobs:
         run: |
           docker compose --env-file .env.example config -q
           docker compose --env-file .env.example --profile assinatura config -q
-          IMAGE_TAG=ci WEB_HOST_PORT=3100 API_HOST_PORT=8100 \
+          IMAGE_TAG=ci WEB_HOST_PORT=3510 API_HOST_PORT=8510 \
             docker compose --env-file .env.example -f docker-compose.yml -f deploy/compose.deploy.yml config -q
       - name: Sites do nginx (sintaxe)
         run: docker run --rm -v "$PWD/deploy/nginx:/etc/nginx/conf.d:ro" nginx:1.28-alpine nginx -t
