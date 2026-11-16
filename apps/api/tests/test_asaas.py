@@ -507,3 +507,63 @@ def test_production_guards_for_asaas(monkeypatch):
     monkeypatch.setenv("PUBLIC_API_URL", "https://api.exemplo.com.br/")
     s = Settings()  # type: ignore[call-arg]
     assert s.public_api_url == "https://api.exemplo.com.br" and s.billing_asaas_configured
+
+
+# ─────────────────────────── estorno automático ───────────────────────────
+
+
+def test_refund_confirmed_in_api_reverses_payment(client, env, fake, world):
+    h = env["h"]
+    _connect(client, h)
+    token = next(iter(fake.webhooks.values()))["authToken"]
+    assert "PAYMENT_PARTIALLY_REFUNDED" in next(iter(fake.webhooks.values()))["events"]
+    insts = env["contract"]()
+    p1 = insts[1]
+    c = client.post(f"{API}/installments/{p1['id']}/charges", headers=h, json={"method": "pix"}).json()
+    pid = c["external_id"]
+    fake.pay(pid)
+    assert _hook(client, world.tenant_a, _event(pid, evt="evt_pago&1"), token).json() == {
+        "status": "processado"
+    }
+
+    # aviso de estorno, mas o Asaas ainda não devolveu (refund PENDING): nada muda
+    fake.payments[pid]["refunds"] = [{"status": "PENDING", "value": float(p1["amount"])}]
+    r = _hook(client, world.tenant_a, _event(pid, event="PAYMENT_REFUNDED", evt="evt_ref&1"), token)
+    assert r.json() == {"status": "ignorado"}
+    assert client.get(f"{API}/charges/{c['id']}", headers=h).json()["status"] == "paga"
+
+    # parcial devolvido de fato (DONE): sinaliza, não estorna sozinho
+    fake.payments[pid]["refunds"] = [{"status": "DONE", "value": 100.0}]
+    r = _hook(client, world.tenant_a, _event(pid, event="PAYMENT_PARTIALLY_REFUNDED", evt="evt_par&1"), token)
+    assert r.json() == {"status": "divergente"}
+    got = client.get(f"{API}/charges/{c['id']}", headers=h).json()
+    assert got["status"] == "paga" and "Estorno parcial de R$ 100.00" in got["status_reason"]
+
+    # estorno total (status REFUNDED) chega pelo botão "Atualizar situação" (webhook perdido)
+    fake.payments[pid]["status"] = "REFUNDED"
+    fake.payments[pid]["refunds"] = [
+        {"status": "DONE", "value": 100.0},
+        {"status": "DONE", "value": float(p1["amount"]) - 100.0},
+    ]
+    out = client.post(f"{API}/charges/{c['id']}/sync", headers=h).json()
+    assert out["result"] == "processado" and out["charge"]["status"] == "estornada"
+    inst = client.get(f"{API}/installments/{p1['id']}", headers=h).json()
+    assert inst["status"] == "aberta" and inst["payments"][0]["reversed"]
+    assert client.post(f"{API}/charges/{c['id']}/sync", headers=h).json()["result"] == "ignorado"
+
+
+def test_asaas_refund_mapping_counts_only_done_refunds():
+    from app.services.psp.asaas import AsaasClient, AsaasProvider
+    from app.services.psp.base import EVENT_PAID, EVENT_PARTIALLY_REFUNDED, EVENT_REFUNDED
+
+    p = AsaasProvider(AsaasClient(KEY_A, "sandbox"), webhook_token_sha256=None)
+    base = {"id": "pay_x", "value": 500.0, "status": "RECEIVED", "clientPaymentDate": "2026-11-10"}
+    assert p._event_from(base, event_id="e", raw={}).type == EVENT_PAID
+    pending = {**base, "refunds": [{"status": "PENDING", "value": 500.0}]}
+    assert p._event_from(pending, event_id="e", raw={}).type == EVENT_PAID
+    two = {**base, "refunds": [{"status": "DONE", "value": 120.5}, {"status": "DONE", "value": 79.5}]}
+    ev = p._event_from(two, event_id="e", raw={})
+    assert ev.type == EVENT_PARTIALLY_REFUNDED and ev.amount == Decimal("200.00")
+    full = {**base, "status": "REFUNDED"}
+    ev = p._event_from(full, event_id="e", raw={})
+    assert ev.type == EVENT_REFUNDED and ev.amount == Decimal("500.00")

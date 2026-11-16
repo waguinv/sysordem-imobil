@@ -218,7 +218,7 @@ def register_payment(
 
 
 def reverse_payment(
-    db: Session, *, tenant_id: uuid.UUID, payment_id: uuid.UUID, reason: str, actor: uuid.UUID
+    db: Session, *, tenant_id: uuid.UUID, payment_id: uuid.UUID, reason: str, actor: uuid.UUID | None
 ) -> PaymentReversal:
     p = db.scalar(select(Payment).where(Payment.id == payment_id, Payment.tenant_id == tenant_id))
     if p is None:

@@ -27,12 +27,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.clock import business_today
-from app.models import Charge, Customer, Installment, SalesContract, WebhookEvent
+from app.models import Charge, Customer, Installment, PaymentReversal, SalesContract, WebhookEvent
 from app.services import audit, psp
 from app.services.psp.base import (
     EVENT_CANCELLED,
     EVENT_EXPIRED,
     EVENT_PAID,
+    EVENT_PARTIALLY_REFUNDED,
+    EVENT_REFUNDED,
     ChargeMethod,
     ChargeRequest,
     PaymentProvider,
@@ -40,7 +42,13 @@ from app.services.psp.base import (
     ProviderEvent,
 )
 from app.services.psp.sandbox import SandboxProvider
-from app.services.receivables import ReceivableError, charges_for, quote_installment, register_payment
+from app.services.receivables import (
+    ReceivableError,
+    charges_for,
+    quote_installment,
+    register_payment,
+    reverse_payment,
+)
 
 log = logging.getLogger("imobil.charges")
 
@@ -458,7 +466,126 @@ def _apply(
         )
         return "processado", None
 
+    if etype in (EVENT_REFUNDED, EVENT_PARTIALLY_REFUNDED):
+        return _apply_refund(db, tenant_id, provider, charge, etype == EVENT_REFUNDED, amount, event_id)
+
     return "ignorado", f"tipo de evento não tratado: {etype}"
+
+
+def _apply_refund(
+    db: Session,
+    tenant_id: uuid.UUID,
+    provider: PaymentProvider,
+    charge: Charge,
+    full: bool,
+    amount: Decimal | None,
+    event_id: str,
+) -> tuple[str, str | None]:
+    """Devolução ao pagador feita no PSP.
+
+    - Total, de cobrança paga: estorna o recebimento (o mesmo estorno do financeiro: desfaz comissão,
+      repasse e conciliação) e a cobrança vira "estornada".
+    - Parcial: não existe meio estorno de recebimento — fica sinalizado para ajuste manual (decisão 41).
+    - Total, de cobrança divergente (dinheiro que nem tinha entrado na parcela): divergência resolvida.
+    """
+    value = amount if amount is not None else charge.paid_amount
+    shown = f"R$ {value}" if value is not None else "valor não informado"
+    today = f"{business_today():%d/%m/%Y}"
+    base = {
+        "charge_id": str(charge.id),
+        "amount": str(value) if value is not None else None,
+        "event_id": event_id,
+    }
+
+    if charge.status == "estornada":
+        return "ignorado", "cobrança já estornada"
+
+    if charge.status == "divergente":
+        note = f"Devolvido ao pagador no PSP em {today} ({shown})."
+        if not full:
+            charge.status_reason = (
+                f"{charge.status_reason or ''}\nDevolução parcial no PSP em {today} ({shown}).".strip()
+            )
+            db.flush()
+            return "processado", "devolução parcial registrada na divergência"
+        charge.status = "resolvida"
+        charge.status_reason = f"{charge.status_reason or ''}\nResolução: {note}".strip()
+        db.flush()
+        audit.record(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            action="charge.resolve",
+            entity="installment",
+            entity_id=charge.installment_id,
+            reason=note,
+            data={**base, "automatic": True},
+        )
+        return "processado", None
+
+    if charge.status != "paga" or charge.payment_id is None:
+        return "ignorado", f"estorno de cobrança {charge.status}"
+
+    if not full:
+        note = (
+            f"Estorno parcial de {shown} no PSP em {today}. O recebimento continua lançado inteiro: "
+            "estorne-o e registre o valor que ficou."
+        )
+        charge.status_reason = note
+        db.flush()
+        audit.record(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            action="charge.partial_refund",
+            entity="installment",
+            entity_id=charge.installment_id,
+            reason=note,
+            data=base,
+        )
+        return "divergente", note
+
+    already = db.scalar(select(PaymentReversal.id).where(PaymentReversal.payment_id == charge.payment_id))
+    if already is None:
+        try:
+            with db.begin_nested():
+                reverse_payment(
+                    db,
+                    tenant_id=tenant_id,
+                    payment_id=charge.payment_id,
+                    reason=f"Estornado no PSP ({provider.label}) em {today} — {shown}",
+                    actor=None,
+                )
+        except ReceivableError as e:
+            note = f"Estorno de {shown} feito no PSP em {today}, mas não aplicado ao recebimento: {e}"
+            charge.status_reason = note
+            db.flush()
+            audit.record(
+                db,
+                tenant_id=tenant_id,
+                actor_user_id=None,
+                action="charge.refund_unapplied",
+                entity="installment",
+                entity_id=charge.installment_id,
+                reason=str(e),
+                data=base,
+            )
+            return "divergente", note
+    charge.status = "estornada"
+    charge.status_reason = f"Estornado no PSP em {today} ({shown})" + (
+        "; o recebimento já tinha sido estornado no sistema" if already is not None else ""
+    )
+    db.flush()
+    audit.record(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=None,
+        action="charge.refunded",
+        entity="installment",
+        entity_id=charge.installment_id,
+        data={**base, "payment_id": str(charge.payment_id), "already_reversed": already is not None},
+    )
+    return "processado", None
 
 
 def sync_charge(db: Session, *, tenant_id: uuid.UUID, charge_id: uuid.UUID) -> WebhookOutcome:
@@ -466,7 +593,7 @@ def sync_charge(db: Session, *, tenant_id: uuid.UUID, charge_id: uuid.UUID) -> W
     c = db.scalar(select(Charge).where(Charge.id == charge_id, Charge.tenant_id == tenant_id))
     if c is None:
         raise ChargeNotFoundError("Cobrança não encontrada")
-    if c.status not in ("pendente", "cancelada", "expirada"):
+    if c.status not in ("pendente", "cancelada", "expirada", "paga", "divergente"):
         return WebhookOutcome("ignorado", f"cobrança já {c.status}", c.id)
     provider = _provider_for(db, c)
     try:
@@ -475,6 +602,9 @@ def sync_charge(db: Session, *, tenant_id: uuid.UUID, charge_id: uuid.UUID) -> W
         raise ChargeError(f"Não foi possível consultar o PSP: {e}") from None
     if ev is None:
         return WebhookOutcome("sem_alteracao", "nada novo no PSP", c.id)
+    if c.status in ("paga", "divergente") and ev.type not in (EVENT_REFUNDED, EVENT_PARTIALLY_REFUNDED):
+        # cobrança já paga: a consulta só interessa se houve estorno
+        return WebhookOutcome("ignorado", f"cobrança já {c.status}", c.id)
     return process_event(db, tenant_id=tenant_id, provider=provider, ev=ev)
 
 
@@ -486,7 +616,7 @@ def simulate(
     *,
     tenant_id: uuid.UUID,
     charge_id: uuid.UUID,
-    event: Literal["paid", "expired"],
+    event: Literal["paid", "expired", "refunded", "partially_refunded"],
     amount: Decimal | None,
     paid_on: date | None,
 ) -> WebhookOutcome:
@@ -513,6 +643,14 @@ def simulate(
         body, headers = provider.build_event(
             etype=EVENT_PAID, external_id=c.external_id, amount=amount, paid_on=day
         )
+    elif event in ("refunded", "partially_refunded"):
+        if c.status not in ("paga", "divergente"):
+            raise ChargeError("Só cobrança paga (ou divergente) pode ser estornada")
+        value = amount or c.paid_amount or c.amount
+        if event == "partially_refunded" and amount is None:
+            raise ChargeError("Informe o valor devolvido no estorno parcial")
+        etype = EVENT_REFUNDED if event == "refunded" else EVENT_PARTIALLY_REFUNDED
+        body, headers = provider.build_event(etype=etype, external_id=c.external_id, amount=value)
     else:
         body, headers = provider.build_event(etype=EVENT_EXPIRED, external_id=c.external_id)
     provider.verify_webhook(headers, body)

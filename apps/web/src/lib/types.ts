@@ -478,7 +478,7 @@ export type Charge = {
   external_id: string;
   amount: string;
   due_date: string;
-  status: "pendente" | "paga" | "cancelada" | "expirada" | "divergente" | "resolvida";
+  status: "pendente" | "paga" | "cancelada" | "expirada" | "divergente" | "resolvida" | "estornada";
   pix_code: string | null;
   boleto_line: string | null;
   payment_url: string | null;

@@ -26,7 +26,7 @@ log = logging.getLogger("imobil.webhooks")
 
 MAX_WEBHOOK_BYTES = 64 * 1024
 Money = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
-ChargeStatus = Literal["pendente", "paga", "cancelada", "expirada", "divergente", "resolvida"]
+ChargeStatus = Literal["pendente", "paga", "cancelada", "expirada", "divergente", "resolvida", "estornada"]
 
 
 # ─────────────────────────── DTOs ───────────────────────────
@@ -48,7 +48,7 @@ class ReasonIn(BaseModel):
 
 
 class SimulateIn(BaseModel):
-    event: Literal["paid", "expired"] = "paid"
+    event: Literal["paid", "expired", "refunded", "partially_refunded"] = "paid"
     amount: Money | None = None  # padrão: valor da cobrança (ou com encargos, se pago após o vencimento)
     paid_on: date | None = None
 

@@ -30,6 +30,8 @@ from app.core.config import get_settings
 from app.services.psp.base import (
     EVENT_CANCELLED,
     EVENT_PAID,
+    EVENT_PARTIALLY_REFUNDED,
+    EVENT_REFUNDED,
     ChargeRequest,
     InvalidSignatureError,
     IssuedCharge,
@@ -45,7 +47,21 @@ BASE_URLS = {
     "production": "https://api.asaas.com/v3",
 }
 USER_AGENT = "SysOrdemImobil/1.0"
-WEBHOOK_EVENTS = ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_DELETED", "PAYMENT_REFUNDED"]
+WEBHOOK_EVENTS = [
+    "PAYMENT_RECEIVED",
+    "PAYMENT_CONFIRMED",
+    "PAYMENT_DELETED",
+    "PAYMENT_REFUNDED",
+    "PAYMENT_PARTIALLY_REFUNDED",
+]
+# Eventos cujo efeito é confirmado consultando a cobrança no Asaas (o corpo do webhook não basta)
+_CONFIRMED_EVENTS = {
+    "PAYMENT_RECEIVED",
+    "PAYMENT_CONFIRMED",
+    "PAYMENT_DELETED",
+    "PAYMENT_REFUNDED",
+    "PAYMENT_PARTIALLY_REFUNDED",
+}
 _PAID = {"RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"}
 # Testes: um httpx.MockTransport que imita o Asaas (nunca definido fora dos testes)
 TRANSPORT_OVERRIDE: httpx.BaseTransport | None = None
@@ -146,6 +162,16 @@ class AsaasClient:
         if self.environment != "sandbox":
             raise ProviderError("confirmação simulada só existe no sandbox do Asaas")
         return self.request("POST", f"/sandbox/payment/{payment_id}/confirm")
+
+
+def _refunded(p: dict[str, Any]) -> Decimal:
+    """Total já devolvido ao pagador: soma dos `refunds` com status DONE (a doc do Asaas avisa que um item
+    no array não significa dinheiro devolvido)."""
+    total = Decimal("0")
+    for r in p.get("refunds") or []:
+        if isinstance(r, dict) and str(r.get("status")) == "DONE":
+            total += _money(r.get("value")) or Decimal("0")
+    return total
 
 
 def _money(v: Any) -> Decimal | None:
@@ -279,7 +305,7 @@ class AsaasProvider:
             raw=data,
             reference=str(ref)[:100] if ref else None,
         )
-        if pid is None or etype not in ("PAYMENT_RECEIVED", "PAYMENT_CONFIRMED", "PAYMENT_DELETED"):
+        if pid is None or etype not in _CONFIRMED_EVENTS:
             return base
         # Confirmação na API: o efeito vem do que o Asaas diz AGORA, não do corpo recebido
         current: dict[str, Any] | None
@@ -305,6 +331,13 @@ class AsaasProvider:
         }
         if p.get("deleted"):
             return ProviderEvent(type=EVENT_CANCELLED, **common)  # type: ignore[arg-type]
+        # Estorno: só vale o que o Asaas já devolveu (refunds com status DONE); status REFUNDED = total
+        refunded = _refunded(p)
+        value = _money(p.get("value"))
+        if str(p.get("status")) == "REFUNDED" or (refunded and value is not None and refunded >= value):
+            return ProviderEvent(type=EVENT_REFUNDED, amount=refunded or value, **common)  # type: ignore[arg-type]
+        if refunded:
+            return ProviderEvent(type=EVENT_PARTIALLY_REFUNDED, amount=refunded, **common)  # type: ignore[arg-type]
         if str(p.get("status")) in _PAID:
             amount = _money(p.get("value"))
             if amount is None:
@@ -321,5 +354,10 @@ class AsaasProvider:
         except AsaasNotFoundError:
             p = {"id": external_id, "deleted": True}
         status = "deleted" if p.get("deleted") else str(p.get("status") or "").lower()
-        summary = {"source": "consulta", "status": status, "value": p.get("value")}
-        return self._event_from(p, event_id=f"consulta:{external_id}:{status}"[:100], raw=summary)
+        refunded = _refunded(p)
+        summary = {"source": "consulta", "status": status, "value": p.get("value"), "refunded": str(refunded)}
+        # o estorno parcial não muda o status: o valor devolvido entra no id para não cair como duplicado
+        key = (
+            f"consulta:{external_id}:{status}:{refunded}" if refunded else f"consulta:{external_id}:{status}"
+        )
+        return self._event_from(p, event_id=key[:100], raw=summary)

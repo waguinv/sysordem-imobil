@@ -601,7 +601,7 @@ class Charge(Base):
     external_id: Mapped[str] = mapped_column(String(100), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
-    # pendente | paga | cancelada | expirada | divergente | resolvida
+    # pendente | paga | cancelada | expirada | divergente | resolvida | estornada
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")
     pix_code: Mapped[str | None] = mapped_column(Text)
     boleto_line: Mapped[str | None] = mapped_column(String(80))
