@@ -44,10 +44,10 @@ Um problema no servidor afeta os dois ambientes; o banco de cada um fica num vol
 
 Situação em 15/11/2026: staging e produção no ar com `sha-78e2ca2` (com rotação de logs); backups diários às 03:15
 (produção) e 03:20 (staging) no cron do usuário `deploy`. **Atenção:**
-- a cópia fora do servidor é **manual**: `deploy/pull_backups.sh` traz para `../imobil-backups/` (fora do repositório)
-  os backups novos (confere o sha256) e, na primeira vez, as chaves `/etc/sysordem/backup-*.key` — sem elas os backups
-  não abrem. Rode com frequência (ou configure `BACKUP_RCLONE_REMOTE` para cópia automática) e guarde essa pasta em
-  lugar seguro;
+- a cópia **automática** fora do servidor existe no código (`deploy/offsite_backup.sh`, ver "Backups" abaixo), mas
+  só vale depois de configurada no servidor. Até lá a cópia é manual: `deploy/pull_backups.sh` traz para
+  `../imobil-backups/` (fora do repositório) os backups novos, conferindo o sha256, e, na primeira vez, as chaves
+  `/etc/sysordem/backup-*.key`. Sem as chaves os backups não abrem. Guarde essa pasta em lugar seguro;
 - disco em 72% (14 GB livres) depois de limpar o cache de build do Docker em 15/11; o resto é ocupado principalmente
   por imagens de **outros** sistemas da VPS;
 - a senha extra do staging está em `/etc/sysordem/staging-acesso.txt` (só root).
@@ -144,10 +144,41 @@ Em cada environment:
   `pre-deploy-<tag>` (`deploy/restore.sh`, que por padrão restaura num banco novo para conferência antes de trocar).
 
 ## Backups
-`deploy/backup.sh` — `pg_dump -Fc` criptografado (AES-256, chave em arquivo) + sha256, retenção local
-`BACKUP_KEEP_DAYS` (14) e cópia externa opcional via rclone (`BACKUP_RCLONE_REMOTE`) ou manual para o seu computador com
-`deploy/pull_backups.sh`. Agende diariamente (cron do
-servidor), por exemplo `15 3 * * * cd /opt/sysordem-imobil && deploy/backup.sh >> /var/log/imobil-backup.log 2>&1`.
+`deploy/backup.sh` — `pg_dump -Fc` criptografado (AES-256, chave em arquivo) + sha256 e retenção local
+`BACKUP_KEEP_DAYS` (14). Agende diariamente (cron do servidor), por exemplo
+`15 3 * * * cd /opt/sysordem-imobil && deploy/backup.sh >> /var/log/imobil-backup.log 2>&1`.
+
+### Cópia automática fora do servidor
+Com `BACKUP_RCLONE_REMOTE` definido, cada backup (o diário e o de antes de cada deploy) chama
+`deploy/offsite_backup.sh`:
+- envia **todos** os backups locais que ainda não estão no destino (um dia que falhou entra no próximo) e confere
+  **todos** com `rclone check` (tamanho e hash);
+- `--immutable`: nunca sobrescreve uma cópia que já está lá (arquivo diferente com o mesmo nome = erro);
+- **nunca apaga nada no destino**: a retenção é uma regra do próprio bucket;
+- se a cópia ou a conferência falhar, o `backup.sh` para **antes** da limpeza local, para que nenhum backup seja
+  apagado do servidor sem estar conferido lá fora;
+- com `BACKUP_HEALTHCHECK_URL`, o backup diário avisa o monitor no sucesso (`<url>`) e na falha (`<url>/fail`). O
+  monitor alerta também se o aviso não chegar, o que pega o caso de o cron ter parado ou o servidor ter caído.
+
+O CI (`drill`) testa tudo isso com o rclone num destino local: envio, repetição sem efeito, reenvio do que sumiu,
+cópia adulterada recusada e avisos de sucesso e falha.
+
+**Configuração no servidor** (uma vez, para produção e staging):
+1. Crie um bucket **privado** num provedor de objetos. Para dumps pequenos, **Cloudflare R2** (10 GB grátis, sem
+   cobrança de saída) ou **Backblaze B2** (tem bloqueio de objeto) servem bem.
+2. Crie uma credencial **só para este bucket**, que possa **gravar e listar, mas não apagar** (B2: application key sem
+   `deleteFiles`; R2: token do bucket + regra de *bucket lock*). Assim, um servidor invadido não consegue apagar as
+   cópias.
+3. Regra de retenção no bucket, por exemplo apagar objetos com mais de 90 dias (*lifecycle*) e, se o provedor tiver,
+   bloqueio de retenção de 30 dias.
+4. No servidor, como usuário `deploy`: instale o rclone (`sudo apt install rclone`) e rode `rclone config` para criar
+   o remoto (ex.: `r2`, tipo S3/Cloudflare ou B2). O arquivo fica em `~/.config/rclone/rclone.conf` (`chmod 600`), fora
+   do Git.
+5. No `.env` de cada ambiente: `BACKUP_RCLONE_REMOTE=r2:<bucket>/producao` (ou `/staging`) e, se quiser alerta,
+   `BACKUP_HEALTHCHECK_URL=` com a URL de um check do healthchecks.io (período 1 dia, tolerância de 2 h).
+6. Teste: `deploy/offsite_backup.sh` na pasta do ambiente. Ele envia os backups que já existem e confere.
+7. **As chaves (`/etc/sysordem/backup-*.key`) não vão para o bucket**, porque estragaria a criptografia. Guarde-as fora
+   do servidor (`deploy/pull_backups.sh` copia na primeira vez) e num cofre de senhas.
 `deploy/restore.sh <arquivo>` restaura num banco novo `imobil_restore_<data>` e confere revisão e empresas.
 A restauração é testada a cada PR no job `drill` do CI (backup → restore → conferência linha a linha e do RLS com
 `scripts/verify_restore.py`) — ver [REVISAO_SEGURANCA.md](REVISAO_SEGURANCA.md).

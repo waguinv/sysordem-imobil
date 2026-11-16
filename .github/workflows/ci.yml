@@ -147,6 +147,32 @@ jobs:
           f="$(ls "$RUNNER_TEMP"/backups/*.dump.enc)"
           if head -c 5 "$f" | grep -q PGDMP; then echo "backup gravado sem criptografia!"; exit 1; fi
           [ "$(stat -c %a "$f")" = "600" ] || { echo "permissão do backup: $(stat -c %a "$f")"; exit 1; }
+      - name: Cópia fora do servidor (rclone num destino local) e aviso ao monitor
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+          remote="$RUNNER_TEMP/offsite"
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory "$RUNNER_TEMP" > "$RUNNER_TEMP/monitor.log" 2>&1 &
+          sleep 1
+          sed -i "s|^BACKUP_RCLONE_REMOTE=.*|BACKUP_RCLONE_REMOTE=$remote|" .env
+          echo "BACKUP_HEALTHCHECK_URL=http://127.0.0.1:8765/hc" >> .env
+          # 1) backup diário envia o de hoje E o que tinha ficado para trás (o "ci" do passo anterior)
+          deploy/backup.sh
+          n_local="$(find "$RUNNER_TEMP/backups" -name '*.dump.enc' | wc -l)"
+          n_remote="$(find "$remote" -name '*.dump.enc' | wc -l)"
+          [ "$n_local" = 2 ] && [ "$n_remote" = 2 ] || { echo "esperado 2/2, veio $n_local/$n_remote"; exit 1; }
+          (cd "$remote" && sha256sum -c --quiet ./*.sha256)
+          grep -q 'GET /hc ' "$RUNNER_TEMP/monitor.log" || { echo "monitor não recebeu o sucesso"; exit 1; }
+          # 2) rodar de novo não muda nada
+          deploy/offsite_backup.sh
+          # 3) backup que sumiu do destino é reenviado
+          rm "$(find "$remote" -name '*.dump.enc' | head -1)"
+          deploy/offsite_backup.sh
+          [ "$(find "$remote" -name '*.dump.enc' | wc -l)" = 2 ] || { echo "não reenviou"; exit 1; }
+          # 4) cópia adulterada no destino: não sobrescreve, falha — e o backup diário avisa a falha
+          echo lixo >> "$(find "$remote" -name '*.dump.enc' | head -1)"
+          if deploy/offsite_backup.sh; then echo "aceitou cópia adulterada no destino!"; exit 1; fi
+          if deploy/backup.sh; then echo "backup não acusou a falha da cópia externa!"; exit 1; fi
+          grep -q 'GET /hc/fail ' "$RUNNER_TEMP/monitor.log" || { echo "monitor não recebeu a falha"; exit 1; }
       - if: always()
         run: docker compose logs --tail=100 api
       - if: always()
