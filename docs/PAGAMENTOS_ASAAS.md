@@ -24,7 +24,13 @@ Em produção, só a conta de produção do Asaas é aceita.
 
 ### Conta da plataforma (assinatura)
 `BILLING_ASAAS_API_KEY`, `BILLING_ASAAS_ENVIRONMENT` (`production` obrigatório em produção) e
-`BILLING_ASAAS_WEBHOOK_TOKEN` (32+ caracteres). Na conta Asaas da SysOrdem, cadastre **um** webhook para
+`BILLING_ASAAS_WEBHOOK_TOKEN` (32+ caracteres). **A chave começa com `$`: no `.env` do servidor, escreva-a entre aspas simples**
+(`BILLING_ASAAS_API_KEY='$aact_prod_...'`). Sem as aspas, o docker compose trata `$aact_...` como variável e a API
+recebe a chave vazia.
+
+Situação em 16/11/2026: produção configurada com a conta da SysOrdem (ESMERALDA SERVICOS LTDA, aprovada) e webhook
+"SysOrdem Imobil" ativo. A mesma conta já tinha o webhook do SysOrdem Saúde. O Asaas manda todos os eventos da conta para os
+dois webhooks: os eventos do Saúde chegam aqui e são ignorados, porque não trazem a referência `<empresa>:<fatura>`. Na conta Asaas da SysOrdem, cadastre **um** webhook para
 `https://api.imobil.sysordemsistemas.com.br/api/v1/webhooks/billing/asaas` com esse token e os eventos
 `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, `PAYMENT_DELETED` e `PAYMENT_REFUNDED`. A fatura leva a referência
 `<empresa>:<fatura>`, e é assim que o webhook único descobre a empresa. A empresa precisa informar o CNPJ
