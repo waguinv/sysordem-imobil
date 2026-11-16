@@ -27,7 +27,11 @@ ping_monitor() {
     || echo "aviso: monitor de backup não respondeu (${1:-ok})" >&2
 }
 # Qualquer saída com erro (comando que falhou ou `exit 1` de uma checagem) avisa a falha.
-trap 'rc=$?; if [ "$rc" -ne 0 ]; then ping_monitor /fail; fi' EXIT
+on_exit() {
+  local rc=$?
+  if [ "$rc" -ne 0 ]; then ping_monitor /fail; fi
+}
+trap on_exit EXIT
 DIR="${BACKUP_DIR:-./backups}"
 KEY="${BACKUP_KEY_FILE:?defina BACKUP_KEY_FILE (arquivo com a senha dos backups)}"
 KEEP="${BACKUP_KEEP_DAYS:-14}"
