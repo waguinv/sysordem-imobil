@@ -94,6 +94,6 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 3. **Revisões externas:** pentest profissional e revisão jurídica, incluindo contrato, distrato, juros/multa, LGPD e termos de uso.
 4. **Contador:** tarifas do Asaas na conciliação (o Asaas credita o valor líquido) e retenções de impostos.
 5. ~~**Estornos:** estorno automático~~ **Feito**: o estorno total no Asaas estorna o recebimento e o parcial é sinalizado (ver PAGAMENTOS_ASAAS.md). Para receber o aviso de estorno parcial, as contas já ligadas precisam ser religadas.
-6. **Backups:** cópia fora do servidor automática (rclone); hoje é manual, com `deploy/pull_backups.sh`.
+6. **Backups:** a cópia automática fora do servidor está pronta no código (`deploy/offsite_backup.sh`, com conferência, sem apagar no destino e com aviso ao monitor). **Falta configurar no servidor:** bucket, credencial sem permissão de apagar, rclone e `.env` (passo a passo em CI_CD.md → Backups). Até lá a cópia segue manual (`deploy/pull_backups.sh`).
 7. **Disco da VPS:** acompanhar. É ocupado principalmente por imagens de outros sistemas.
 8. **Demais decisões abertas:** lista completa em [DECISOES_PENDENTES.md](DECISOES_PENDENTES.md).
