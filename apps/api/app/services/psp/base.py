@@ -23,6 +23,8 @@ ChargeMethod = Literal["pix", "boleto"]
 EVENT_PAID = "charge.paid"
 EVENT_EXPIRED = "charge.expired"
 EVENT_CANCELLED = "charge.cancelled"
+EVENT_REFUNDED = "charge.refunded"  # devolvido por inteiro ao pagador
+EVENT_PARTIALLY_REFUNDED = "charge.partially_refunded"  # parte devolvida (amount = total devolvido)
 
 
 class ProviderError(Exception):

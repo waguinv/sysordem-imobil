@@ -463,3 +463,129 @@ def test_sandbox_payload_is_obviously_fake():
     ev = p.parse_webhook(body)
     assert ev.amount == D("10.00") and ev.external_id == issued.external_id
     assert json.loads(body)["type"] == "charge.paid"
+
+
+# ─────────────────────────── estorno automático (devolução no PSP) ───────────────────────────
+
+
+def _paid_charge(client, env, inst_idx=0):
+    h = env["h"]
+    _, insts = env["contract"]()
+    inst = insts[inst_idx]
+    c = _issue(client, h, inst["id"]).json()
+    out = _simulate(client, h, c["id"]).json()
+    assert out["charge"]["status"] == "paga", out
+    return c, inst
+
+
+def test_full_refund_reverses_payment_and_side_effects(client, env, owner_engine):
+    h = env["h"]
+    c, inst = _paid_charge(client, env)
+    paid = client.get(f"{API}/installments/{inst['id']}", headers=h).json()
+    assert paid["status"] == "paga" and len(paid["payments"]) == 1
+
+    out = _simulate(client, h, c["id"], event="refunded").json()
+    assert out["result"] == "processado", out
+    ch = out["charge"]
+    assert ch["status"] == "estornada" and "Estornado no PSP" in ch["status_reason"]
+    assert ch["payment_id"]  # continua ligada ao recebimento (que foi estornado)
+    inst_after = client.get(f"{API}/installments/{inst['id']}", headers=h).json()
+    assert inst_after["status"] == "aberta" and inst_after["paid_principal"] == "0.00"
+    [p] = inst_after["payments"]
+    assert p["reversed"] and "Estornado no PSP" in p["reversal_reason"]
+    # idempotente: outro aviso de estorno não faz nada
+    again = _simulate(client, h, c["id"], event="refunded")
+    assert again.status_code == 409  # simulador recusa: cobrança já estornada
+    from app.services.psp.base import EVENT_REFUNDED
+
+    body, headers = _signed(c["external_id"], amount=D(c["amount"]), etype=EVENT_REFUNDED, event_id="evt-r2")
+    tid = _tenant_a(owner_engine)
+    r = client.post(
+        f"{API}/webhooks/payments/sandbox/{tid}",
+        content=body,
+        headers={**headers, "Content-Type": "application/json"},
+    )
+    assert r.json() == {"status": "ignorado"}
+    actions = {a["action"] for a in client.get(f"{API}/audit-events", headers=h).json()}
+    assert {"charge.refunded", "payment.reverse"} <= actions
+    # a parcela pode ser cobrada de novo
+    assert _issue(client, h, inst["id"]).status_code == 201
+
+
+def _tenant_a(owner_engine):
+    with owner_engine.begin() as c:
+        return c.execute(text("SELECT id FROM tenants WHERE slug = 'empresa-a'")).scalar()
+
+
+def test_refund_after_manual_reversal_just_marks_charge(client, env):
+    h = env["h"]
+    c, inst = _paid_charge(client, env)
+    pay_id = client.get(f"{API}/installments/{inst['id']}", headers=h).json()["payments"][0]["id"]
+    client.post(f"{API}/payments/{pay_id}/reverse", headers=h, json={"reason": "devolvido por fora"})
+    out = _simulate(client, h, c["id"], event="refunded").json()
+    assert out["result"] == "processado"
+    assert (
+        out["charge"]["status"] == "estornada" and "já tinha sido estornado" in out["charge"]["status_reason"]
+    )
+    assert len(client.get(f"{API}/installments/{inst['id']}", headers=h).json()["payments"]) == 1
+
+
+def test_partial_refund_is_flagged_for_manual_adjustment(client, env):
+    h = env["h"]
+    c, inst = _paid_charge(client, env)
+    assert _simulate(client, h, c["id"], event="partially_refunded").status_code == 409  # exige valor
+    out = _simulate(client, h, c["id"], event="partially_refunded", amount="5000.00").json()
+    assert out["result"] == "divergente"
+    ch = out["charge"]
+    assert ch["status"] == "paga" and "Estorno parcial de R$ 5000.00" in ch["status_reason"]
+    after = client.get(f"{API}/installments/{inst['id']}", headers=h).json()
+    assert after["status"] == "paga" and not after["payments"][0]["reversed"]  # nada estornado sozinho
+
+
+def test_refund_of_renegotiated_installment_is_not_applied(client, env):
+    h = env["h"]
+    _, insts = env["contract"]()
+    p1 = insts[1]
+    c = _issue(client, h, p1["id"]).json()
+    # o comprador pagou só parte da parcela pelo Pix; depois o saldo foi renegociado
+    out = _simulate(client, h, c["id"], amount="1000.00").json()
+    assert out["charge"]["status"] == "paga"
+    r = client.post(
+        f"{API}/contracts/{p1['contract_id']}/renegotiations",
+        headers=h,
+        json={
+            "installments_count": 10,
+            "first_due_date": (_today() + timedelta(days=15)).isoformat(),
+            "reason": "prazo",
+        },
+    )
+    assert r.status_code == 201, r.text
+    assert client.get(f"{API}/installments/{p1['id']}", headers=h).json()["status"] == "renegociada"
+    out = _simulate(client, h, c["id"], event="refunded").json()
+    assert out["result"] == "divergente"
+    ch = out["charge"]
+    assert ch["status"] == "paga" and "não aplicado ao recebimento" in ch["status_reason"]
+    pays = client.get(f"{API}/installments/{p1['id']}", headers=h).json()["payments"]
+    assert not pays[0]["reversed"]  # nada estornado sozinho numa parcela renegociada
+
+
+def test_refund_of_divergent_charge_resolves_it(client, env):
+    h = env["h"]
+    _, insts = env["contract"]()
+    c = _issue(client, h, insts[0]["id"]).json()
+    out = _simulate(client, h, c["id"], amount="25000.00").json()  # pagou a mais → divergente
+    assert out["charge"]["status"] == "divergente"
+    out = _simulate(client, h, c["id"], event="refunded").json()
+    assert out["result"] == "processado"
+    assert (
+        out["charge"]["status"] == "resolvida"
+        and "Devolvido ao pagador no PSP" in out["charge"]["status_reason"]
+    )
+
+
+def test_refund_rbac_and_isolation(client, env):
+    h = env["h"]
+    c, _ = _paid_charge(client, env)
+    assert _simulate(client, login(client, "dave"), c["id"], event="refunded").status_code == 403
+    assert _simulate(client, login(client, "bob", "empresa-b"), c["id"], event="refunded").status_code == 404
+    assert client.get(f"{API}/charges", headers=h, params={"status": "estornada"}).json() == []

@@ -68,7 +68,7 @@ export default async function CobrancaPage({ params }: { params: Promise<{ id: s
       {c.status_reason && (
         <p
           className={
-            c.status === "divergente"
+            c.status === "divergente" || (c.status === "paga" && c.status_reason)
               ? "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm whitespace-pre-line text-red-800"
               : "text-muted-foreground text-sm whitespace-pre-line"
           }
@@ -90,7 +90,7 @@ export default async function CobrancaPage({ params }: { params: Promise<{ id: s
         </CardContent>
       </Card>
 
-      {(c.status === "pendente" || c.status === "divergente") && (
+      {(c.status === "pendente" || c.status === "divergente" || c.status === "paga") && (
         <Card>
           <CardContent className="space-y-4">
             {c.status === "pendente" && <ChargeCode charge={c} />}

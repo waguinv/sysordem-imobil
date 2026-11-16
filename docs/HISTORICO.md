@@ -84,7 +84,7 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 ## Estado atual
 - `main` = `ef46076`; sem PRs abertos.
 - Produção em `sha-1e868db`. O staging acompanha a `main`.
-- Migrations até **0016**.
+- Migrations até **0017**.
 - Testes: 323 na API (pytest, com PostgreSQL real e RLS) e 28 na web (Vitest). CI: api, web, infra e drill.
 
 ## Pendências (em ordem sugerida)
@@ -93,7 +93,7 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 2. **SysOrdem Saúde:** confirmar que ele ignora os pagamentos do Imobil que chegam ao webhook dele (a conta Asaas é a mesma).
 3. **Revisões externas:** pentest profissional e revisão jurídica, incluindo contrato, distrato, juros/multa, LGPD e termos de uso.
 4. **Contador:** tarifas do Asaas na conciliação (o Asaas credita o valor líquido) e retenções de impostos.
-5. **Estornos:** estorno automático (`PAYMENT_REFUNDED` hoje é registrado e ignorado).
+5. ~~**Estornos:** estorno automático~~ **Feito**: o estorno total no Asaas estorna o recebimento e o parcial é sinalizado (ver PAGAMENTOS_ASAAS.md). Para receber o aviso de estorno parcial, as contas já ligadas precisam ser religadas.
 6. **Backups:** cópia fora do servidor automática (rclone); hoje é manual, com `deploy/pull_backups.sh`.
 7. **Disco da VPS:** acompanhar. É ocupado principalmente por imagens de outros sistemas.
 8. **Demais decisões abertas:** lista completa em [DECISOES_PENDENTES.md](DECISOES_PENDENTES.md).

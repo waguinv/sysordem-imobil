@@ -79,8 +79,24 @@ da parcela, pagamento simulado, "Atualizar situação", cobrança paga e parcela
 devolve a mensagem do Asaas ("O Pix não está disponível no momento…") e o boleto funciona normalmente. Ele recusa chave de produção. Os testes automatizados (`tests/test_asaas.py`)
 usam um Asaas falso que segue a API v3.
 
+## Estornos (devolução ao pagador)
+- Eventos `PAYMENT_REFUNDED` e `PAYMENT_PARTIALLY_REFUNDED`. Como nos pagamentos, o efeito vem da **consulta** da
+  cobrança no Asaas, não do corpo do aviso. Só conta o que o Asaas já devolveu: os itens de `refunds` com
+  `status: DONE` (a documentação avisa que um item no array não quer dizer dinheiro devolvido). Status `REFUNDED`
+  significa estorno total.
+- **Total**, de cobrança paga: o recebimento da parcela é estornado pelo mesmo caminho do estorno manual (desfaz
+  comissão, repasse e conciliação, e a parcela volta a "aberta"). A cobrança fica "estornada" e a parcela pode ser
+  cobrada de novo. Se o financeiro já tinha estornado à mão, só a cobrança é marcada.
+- **Parcial**: não existe meio estorno de recebimento. A cobrança continua paga, com o aviso em destaque, e o
+  financeiro estorna e registra o valor que ficou (decisão 41).
+- Parcela renegociada ou cancelada: o estorno não é aplicado sozinho e fica sinalizado na cobrança.
+- Cobrança **divergente** devolvida por inteiro: a divergência fica resolvida automaticamente.
+- Webhook perdido: o botão "Atualizar situação no Asaas" também consulta cobranças pagas e aplica o estorno.
+- Contas ligadas antes desta versão: o webhook delas foi cadastrado sem `PAYMENT_PARTIALLY_REFUNDED`. Para recebê-lo,
+  desligue e ligue de novo a conta em Configurações → Recebimentos. O estorno total chega de qualquer forma.
+- Assinatura SaaS: estorno de fatura continua fora do automático. É decisão do operador (decisão 38).
+
 ## Pendências
 - Conferir com o contador: o Asaas credita o valor **líquido** de tarifas (`netValue`); a baixa usa o valor pago pelo
   comprador (`value`). A tarifa fica fora do recebimento (decisão pendente 31).
-- Estorno (`PAYMENT_REFUNDED`) é registrado e ignorado: o estorno do recebimento continua manual, pelo financeiro.
 - Cartão de crédito e Pix automático não fazem parte do escopo.

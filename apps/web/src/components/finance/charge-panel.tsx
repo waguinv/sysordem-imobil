@@ -53,8 +53,10 @@ export function ChargeActions({
   sandbox: boolean;
 }) {
   const pending = charge.status === "pendente";
+  const refundable = charge.status === "paga" || charge.status === "divergente";
   const syncable =
-    charge.provider !== "sandbox" && ["pendente", "cancelada", "expirada"].includes(charge.status);
+    charge.provider !== "sandbox" &&
+    ["pendente", "cancelada", "expirada", "paga", "divergente"].includes(charge.status);
   return (
     <div className="space-y-3">
       {syncable && canManage && (
@@ -64,7 +66,9 @@ export function ChargeActions({
           submitVariant="outline"
         >
           <p className="text-muted-foreground text-xs">
-            O pagamento costuma chegar sozinho pelo aviso do Asaas. Se demorar, consulte direto.
+            {refundable
+              ? "Estornos feitos no Asaas chegam sozinhos pelo aviso. Se demorar, consulte direto."
+              : "O pagamento costuma chegar sozinho pelo aviso do Asaas. Se demorar, consulte direto."}
           </p>
         </ActionForm>
       )}
@@ -99,6 +103,35 @@ export function ChargeActions({
               </Field>
               <Field label="Data do pagamento" htmlFor={`dt-${charge.id}`}>
                 <Input id={`dt-${charge.id}`} name="paid_on" type="date" />
+              </Field>
+            </div>
+          </ActionForm>
+        </details>
+      )}
+      {refundable && canManage && sandbox && charge.provider === "sandbox" && (
+        <details className="rounded-md border border-dashed p-3">
+          <summary className="text-brand-institutional flex cursor-pointer items-center gap-1.5 text-sm font-medium">
+            <FlaskConical className="size-4" /> Simular estorno no PSP (sandbox)
+          </summary>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Estorno total estorna o recebimento da parcela (comissão, repasse e conciliação inclusos). Parcial
+            só sinaliza para ajuste manual.
+          </p>
+          <ActionForm
+            action={simulateChargeAction.bind(null, charge.id)}
+            submitLabel="Enviar estorno"
+            submitVariant="outline"
+            className="mt-2"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Estorno" htmlFor={`rf-${charge.id}`}>
+                <select id={`rf-${charge.id}`} name="event" className={selectClass} defaultValue="refunded">
+                  <option value="refunded">Total</option>
+                  <option value="partially_refunded">Parcial</option>
+                </select>
+              </Field>
+              <Field label="Valor devolvido (R$)" htmlFor={`rv-${charge.id}`}>
+                <Input id={`rv-${charge.id}`} name="amount" inputMode="decimal" placeholder="valor pago" />
               </Field>
             </div>
           </ActionForm>

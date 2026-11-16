@@ -4,7 +4,7 @@
 3. Forma de pagamento ao proprietário da área e base da comissão. *Fase 3b adotou (hipótese): repasse de % configurável por empreendimento sobre cada parcela recebida.*
 4. Base e momento de cálculo da comissão dos corretores. *Fase 3b adotou (configurável por empresa): padrão 5% sobre cada valor de parcela recebido; alternativa: sobre o total na assinatura; % próprio por corretor.*
 5. Regras para juros, multa, correção, antecipação, renegociação e distrato. *Fase 3a adotou (a validar com jurídico/contábil): multa única + mora pro rata die (mês de 30 dias) sobre a parte paga em atraso; correção monetária ainda não aplicada; Fase 3c adotou: renegociação de todo o saldo em aberto (encargos opcionais, desconto em R$) e distrato com retenção padrão de 10% do contrato limitada ao pago (Lei 13.786/2018 como referência) — validar com jurídico. Antecipação com desconto ainda não implementada.*
-6. ~~Banco/PSP prioritário~~ **Decidido: Asaas** (Pix e boleto), integrado: cada empresa liga a própria conta em Configurações → Recebimentos e a assinatura SaaS usa a conta da plataforma (ver PAGAMENTOS_ASAAS.md). Pendente: tarifas do Asaas na conciliação (item 31) e estorno automático.
+6. ~~Banco/PSP prioritário~~ **Decidido: Asaas** (Pix e boleto), integrado: cada empresa liga a própria conta em Configurações → Recebimentos e a assinatura SaaS usa a conta da plataforma (ver PAGAMENTOS_ASAAS.md). Pendente: tarifas do Asaas na conciliação (item 31). Estorno automático entregue (parcial: item 41).
 7. Formato da planta (DWG, KML, GeoJSON, PDF, imagem etc.). *Hoje: mapa esquemático por quadra; `lots.geometry` (GeoJSON) reservado.*
 8. Quantidade de empresas, empreendimentos, lotes, usuários e contratos para migração.
 9. Relatórios exigidos pelo contador.
@@ -39,3 +39,4 @@
 38. Console do operador SaaS (SysOrdem): ver empresas, conceder cortesia/desconto, estornar fatura, encerrar conta e exportar dados (LGPD). Quem opera e com que acesso?
 39. Emissão de nota fiscal de serviço da assinatura e e-mail de cobrança/recibo (provedor de e-mail — decisão 10).
 40. Termos de uso e política de privacidade: textos jurídicos a redigir (hoje só o aceite é registrado).
+41. Estorno **parcial** no PSP (Asaas): hoje a cobrança fica sinalizada e o financeiro estorna o recebimento e registra o valor que ficou. Fazer isso sozinho? E se a parcela já foi renegociada, como tratar o estorno?

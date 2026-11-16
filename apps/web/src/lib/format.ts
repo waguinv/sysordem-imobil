@@ -220,6 +220,7 @@ export const CHARGE_STATUS: Record<string, { label: string; badge: BadgeVariant 
   expirada: { label: "Expirada", badge: "muted" },
   divergente: { label: "Divergente", badge: "outline" },
   resolvida: { label: "Divergência resolvida", badge: "muted" },
+  estornada: { label: "Estornada no PSP", badge: "muted" },
 };
 
 export const CHARGE_METHOD: Record<string, string> = { pix: "Pix", boleto: "Boleto" };

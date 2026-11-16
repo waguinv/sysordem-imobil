@@ -75,7 +75,8 @@ const RESULT_MSG: Record<string, string> = {
 
 export async function simulateChargeAction(chargeId: string, _p: FormState, f: FormData): Promise<FormState> {
   return guard(async () => {
-    const event = str(f, "event") === "expired" ? "expired" : "paid";
+    const raw = str(f, "event");
+    const event = ["expired", "refunded", "partially_refunded"].includes(raw) ? raw : "paid";
     const rawAmount = str(f, "amount");
     const amount = rawAmount ? parseDecimalBR(rawAmount) : null;
     if (rawAmount && (!amount || Number(amount) <= 0)) throw new ApiError(422, "Valor inválido");
