@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Sidebar } from "@/components/layout/sidebar";
 import { SubscriptionBanner } from "@/components/billing/subscription-banner";
 import { Topbar } from "@/components/layout/topbar";
@@ -19,6 +20,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           permissions={me.permissions}
         />
         <SubscriptionBanner st={sub} canManage={can(me, "billing:view")} />
+        {me.mfa_recommended && !me.mfa_enabled && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-2 bg-amber-100 px-4 py-2.5 text-sm text-amber-900 sm:px-6"
+          >
+            <span>
+              Proteja sua conta: ative a verificação em duas etapas (recomendada para{" "}
+              {me.role_label.toLowerCase()}).
+            </span>
+            <Link href="/app/conta/seguranca" className="font-medium underline">
+              Ativar
+            </Link>
+          </div>
+        )}
         <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-8">{children}</main>
       </div>
     </div>

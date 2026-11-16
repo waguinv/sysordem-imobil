@@ -1,18 +1,31 @@
+import uuid
+
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas import LoginIn, SwitchTenantIn, TokenOut
+from app.api.v1.schemas import LoginIn, LoginOut, MfaLoginIn, SwitchTenantIn, TokenOut
 from app.auth.deps import AuthContext, get_auth
 from app.core.config import get_settings
 from app.core.db import DB_DEPENDS, set_tenant
-from app.core.security import create_access_token, verify_password
+from app.core.security import (
+    MFA_TOKEN_MINUTES,
+    create_access_token,
+    create_mfa_token,
+    decode_mfa_token,
+    verify_password,
+)
 from app.models import Membership, Tenant, User
-from app.services import audit, login_throttle
+from app.services import audit, login_throttle, mfa
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _INVALID = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais inválidas")
+_BAD_CODE = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código inválido")
+_EXPIRED = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED, detail="A verificação expirou. Entre de novo com a senha."
+)
 
 
 def _issue(db: Session, *, user: User, tenant: Tenant) -> TokenOut | None:
@@ -35,8 +48,8 @@ def _active_tenant(db: Session, slug: str) -> Tenant | None:
     return db.scalar(select(Tenant).where(Tenant.slug == slug.lower(), Tenant.is_active.is_(True)))
 
 
-@router.post("/login", response_model=TokenOut)
-def login(body: LoginIn, db: Session = DB_DEPENDS) -> TokenOut:
+@router.post("/login", response_model=LoginOut)
+def login(body: LoginIn, db: Session = DB_DEPENDS) -> LoginOut:
     if login_throttle.is_blocked(body.tenant_slug, body.email):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Muitas tentativas")
 
@@ -52,8 +65,54 @@ def login(body: LoginIn, db: Session = DB_DEPENDS) -> TokenOut:
         raise _INVALID
 
     login_throttle.reset(body.tenant_slug, body.email)
+    if mfa.is_enabled(db, user.id):
+        # senha certa; o token de acesso só sai depois do código do aplicativo (POST /auth/mfa/login)
+        return LoginOut(
+            expires_in=MFA_TOKEN_MINUTES * 60,
+            mfa_required=True,
+            mfa_token=create_mfa_token(user_id=user.id, tenant_id=tenant.id),
+        )
     audit.record(
         db, tenant_id=tenant.id, actor_user_id=user.id, action="auth.login", entity="user", entity_id=user.id
+    )
+    return LoginOut(**result.model_dump())
+
+
+def _mfa_key(user_id: uuid.UUID) -> tuple[str, str]:
+    return ("mfa", str(user_id))  # limite de tentativas próprio da 2ª etapa, por usuário
+
+
+@router.post("/mfa/login", response_model=TokenOut)
+def mfa_login(body: MfaLoginIn, db: Session = DB_DEPENDS) -> TokenOut:
+    """2ª etapa do login: o código do aplicativo (ou de recuperação) troca o desafio pelo token."""
+    try:
+        claims = decode_mfa_token(body.mfa_token)
+        user_id = uuid.UUID(claims["sub"])
+        tenant_id = uuid.UUID(claims["tid"])
+    except (jwt.PyJWTError, ValueError, KeyError):
+        raise _EXPIRED from None
+    if login_throttle.is_blocked(*_mfa_key(user_id)):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Muitas tentativas")
+    user = db.get(User, user_id)
+    tenant = db.get(Tenant, tenant_id)
+    if user is None or not user.is_active or tenant is None or not tenant.is_active:
+        raise _EXPIRED
+    method = mfa.verify(db, user.id, body.code)
+    if method is None:
+        login_throttle.register_failure(*_mfa_key(user_id))
+        raise _BAD_CODE
+    result = _issue(db, user=user, tenant=tenant)
+    if result is None:  # vínculo desativado entre a senha e o código
+        raise _EXPIRED
+    login_throttle.reset(*_mfa_key(user_id))
+    audit.record(
+        db,
+        tenant_id=tenant.id,
+        actor_user_id=user.id,
+        action="auth.login",
+        entity="user",
+        entity_id=user.id,
+        data={"mfa": method},
     )
     return result
 

@@ -85,6 +85,7 @@ export const NAV: NavEntry[] = [
     icon: Settings,
     items: [
       { title: "Equipe e acessos", href: "/app/equipe", icon: Users, permission: "members:view" },
+      { title: "Segurança da conta", href: "/app/conta/seguranca", permission: "tenant:view" },
       {
         title: "Política de contratos",
         href: "/app/configuracoes/politica-contratos",

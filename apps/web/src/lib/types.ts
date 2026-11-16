@@ -89,6 +89,7 @@ export type Member = {
   full_name: string;
   role: string;
   is_active: boolean;
+  mfa_enabled?: boolean;
 };
 
 export type Reservation = {
