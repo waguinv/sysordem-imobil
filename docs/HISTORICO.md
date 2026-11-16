@@ -82,8 +82,8 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
     - A mesma conta Asaas tem o webhook do SysOrdem Saúde. Eventos do Saúde chegam ao Imobil e são ignorados.
 
 ## Estado atual
-- `main` = `ef46076`; sem PRs abertos.
-- Produção em `sha-1e868db`. O staging acompanha a `main`.
+- `main` = `2583851`; sem PRs abertos.
+- Produção em `sha-2583851` (16/11: estorno automático e cópia externa dos backups). O staging acompanha a `main`.
 - Migrations até **0017**.
 - Testes: 323 na API (pytest, com PostgreSQL real e RLS) e 28 na web (Vitest). CI: api, web, infra e drill.
 
