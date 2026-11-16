@@ -42,11 +42,14 @@ DNS: os quatro nomes já apontam para `200.141.27.53`. **A VPS é compartilhada*
 em todos os containers (`deploy/compose.deploy.yml`) — 1 CPU e ~4 GB de RAM para tudo. Imagens no GHCR são públicas (sem `docker login`).
 Um problema no servidor afeta os dois ambientes; o banco de cada um fica num volume próprio.
 
-Situação em 15/11/2026: staging e produção no ar com `sha-9ef97d2`; backups diários às 03:15 (produção) e 03:20
-(staging) no cron do usuário `deploy`. **Atenção:**
-- os backups ficam **só no próprio servidor** — configure `BACKUP_RCLONE_REMOTE` (cópia externa) e guarde fora do
-  servidor as chaves `/etc/sysordem/backup-production.key` e `backup-staging.key` (sem elas os backups não abrem);
-- disco em 88% (5,8 GB livres), ocupado principalmente por imagens e cache de build de **outros** sistemas da VPS;
+Situação em 15/11/2026: staging e produção no ar com `sha-78e2ca2` (com rotação de logs); backups diários às 03:15
+(produção) e 03:20 (staging) no cron do usuário `deploy`. **Atenção:**
+- a cópia fora do servidor é **manual**: `deploy/pull_backups.sh` traz para `../imobil-backups/` (fora do repositório)
+  os backups novos (confere o sha256) e, na primeira vez, as chaves `/etc/sysordem/backup-*.key` — sem elas os backups
+  não abrem. Rode com frequência (ou configure `BACKUP_RCLONE_REMOTE` para cópia automática) e guarde essa pasta em
+  lugar seguro;
+- disco em 72% (14 GB livres) depois de limpar o cache de build do Docker em 15/11; o resto é ocupado principalmente
+  por imagens de **outros** sistemas da VPS;
 - a senha extra do staging está em `/etc/sysordem/staging-acesso.txt` (só root).
 
 No GitHub já estão: environments `staging` e `production` (só a `main`; produção exige aprovação de `waguinv`),
@@ -142,7 +145,8 @@ Em cada environment:
 
 ## Backups
 `deploy/backup.sh` — `pg_dump -Fc` criptografado (AES-256, chave em arquivo) + sha256, retenção local
-`BACKUP_KEEP_DAYS` (14) e cópia externa opcional via rclone (`BACKUP_RCLONE_REMOTE`). Agende diariamente (cron do
+`BACKUP_KEEP_DAYS` (14) e cópia externa opcional via rclone (`BACKUP_RCLONE_REMOTE`) ou manual para o seu computador com
+`deploy/pull_backups.sh`. Agende diariamente (cron do
 servidor), por exemplo `15 3 * * * cd /opt/sysordem-imobil && deploy/backup.sh >> /var/log/imobil-backup.log 2>&1`.
 `deploy/restore.sh <arquivo>` restaura num banco novo `imobil_restore_<data>` e confere revisão e empresas.
 A restauração é testada a cada PR no job `drill` do CI (backup → restore → conferência linha a linha e do RLS com
