@@ -2,24 +2,15 @@
 
 SaaS multiempresa para gestão de loteamentos de terrenos e chácaras: empreendimentos, quadras/lotes, vendas, contratos, parcelas, contas a pagar/receber, comissões e site público. Produto da família **SysOrdem** (mesma identidade visual do [SysOrdem Saúde](https://github.com/waguinv/sysordem-saude)). Codinome anterior: *LoteaPro*.
 
-> **Status: Fase 5 concluída (5a, 5b, 5c)** — autenticação, multi-tenancy com RLS, RBAC, auditoria; empreendimentos,
-> quadras, lotes e mapa; CRM (leads, propostas, escopo do corretor), reservas, contratos versionados, parcelas,
-> contas a receber e a pagar, comissões e repasses, renegociação, distrato e relatórios; **cobranças Pix/boleto
-> por adaptador de pagamentos (PSP sandbox) com webhooks autenticados e idempotentes** e **conciliação bancária**
-> (importação de extrato OFX/CSV); **site público** com empreendimentos publicados e formulário de contato; **portal do comprador** (contrato,
-> parcelas, 2ª via Pix/boleto e informe anual de pagamentos, com acesso por convite); **planos SaaS**
-> (cadastro self-service com 14 dias de teste, limites por plano, faturas mensais por Pix/boleto e
-> suspensão por atraso).
-> **Fase 6a:** cabeçalhos de segurança, CSP com nonce, limites de corpo/taxa, logs estruturados, travas de
-> configuração de produção, CI com auditoria de dependências/segredos/imagens e deploy com staging, backup e rollback
-> ([docs/CI_CD.md](docs/CI_CD.md)). **Fase 6b:** restauração de backup conferida no CI, teste de carga e de
-> concorrência e autorrevisão de segurança ([docs/REVISAO_SEGURANCA.md](docs/REVISAO_SEGURANCA.md)) — pentest e
-> revisões profissionais ainda pendentes.
-> Ainda **não** há PSP real (Fase 4c), console do operador SaaS nem correção monetária.
-> Não use dados reais nem publique em produção — ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
-> **Pagamentos:** Pix e boleto reais pelo Asaas (conta de cada empresa + conta da plataforma para a assinatura) — ver [docs/PAGAMENTOS_ASAAS.md](docs/PAGAMENTOS_ASAAS.md).
->
-> **Assinatura eletrônica:** contratos enviados ao Documenso auto-hospedado (ou ao simulador em desenvolvimento) — ver [docs/ASSINATURA_ELETRONICA.md](docs/ASSINATURA_ELETRONICA.md).
+> **Status (16/11/2026): no ar.** Produção em https://imobil.sysordemsistemas.com.br e staging em
+> https://staging.imobil.sysordemsistemas.com.br. Fases 0 a 6 concluídas: multiempresa com RLS, RBAC e auditoria;
+> empreendimentos, lotes e mapa; CRM, reservas, contratos versionados, parcelas, contas a receber e a pagar,
+> comissões, repasses, renegociação, distrato e relatórios; conciliação bancária; site público; portal do comprador;
+> planos SaaS; assinatura eletrônica (Documenso); segurança, CI/CD, backups e rollback.
+> **Pagamentos reais pelo Asaas**: Pix e boleto na conta de cada loteadora, e a assinatura SaaS na conta da plataforma
+> ([docs/PAGAMENTOS_ASAAS.md](docs/PAGAMENTOS_ASAAS.md)).
+> **Ainda pendentes**: pentest e revisões jurídica e contábil, console do operador SaaS e correção monetária.
+> **Histórico completo e próximos passos: [docs/HISTORICO.md](docs/HISTORICO.md).**
 
 ## Stack
 - **Web**: Next.js 16 + React 19 + TypeScript + Tailwind CSS 4 (identidade SysOrdem), mobile-first.
