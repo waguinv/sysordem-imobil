@@ -17,6 +17,7 @@ from app.api.v1 import (
     esign,
     finance,
     payables,
+    payment_accounts,
     portal,
     reconciliation,
     reports,
@@ -104,6 +105,7 @@ v1.include_router(payables.router)
 v1.include_router(contract_changes.router)
 v1.include_router(reports.router)
 v1.include_router(charges.router)
+v1.include_router(payment_accounts.router)
 v1.include_router(reconciliation.router)
 v1.include_router(site.router)
 v1.include_router(site.public)

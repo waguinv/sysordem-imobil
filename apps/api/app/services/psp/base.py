@@ -42,6 +42,10 @@ class ChargeRequest:
     payer_name: str
     payer_document: str | None
     description: str
+    payer_reference: str | None = None  # id do pagador no nosso sistema (o PSP reaproveita o cadastro)
+    # Encargos que o PSP cobra se pago DEPOIS do vencimento (None = o PSP não acrescenta nada)
+    late_fee_pct: Decimal | None = None
+    late_interest_monthly_pct: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,7 @@ class IssuedCharge:
     external_id: str
     pix_code: str | None = None  # Pix copia e cola
     boleto_line: str | None = None  # linha digitável
+    payment_url: str | None = None  # página do PSP com Pix/boleto em PDF para o pagador
 
 
 @dataclass(frozen=True)
@@ -59,6 +64,7 @@ class ProviderEvent:
     amount: Decimal | None = None
     paid_on: date | None = None
     raw: dict[str, Any] = field(default_factory=dict)
+    reference: str | None = None  # `ChargeRequest.reference` devolvido pelo PSP (se ele devolver)
 
 
 class PaymentProvider(Protocol):
@@ -74,5 +80,13 @@ class PaymentProvider(Protocol):
         ...
 
     def parse_webhook(self, body: bytes) -> ProviderEvent:
-        """Só chamar depois de `verify_webhook`. Levanta InvalidSignatureError se malformado."""
+        """Só chamar depois de `verify_webhook`. Levanta InvalidSignatureError se malformado
+        (e ProviderError se precisar confirmar no PSP e ele não responder — o PSP reenvia)."""
+        ...
+
+    def fetch_event(self, external_id: str) -> ProviderEvent | None:
+        """Situação atual da cobrança consultada no PSP, como evento (None = nada a aplicar).
+
+        Rede de segurança para webhook perdido: o botão "Atualizar situação" passa pelo mesmo
+        processamento de um webhook."""
         ...

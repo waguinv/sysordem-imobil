@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, selectClass } from "@/components/ui/action-form";
+import { PaymentLink } from "@/components/finance/payment-link";
 import { CopyButton } from "@/components/ui/copy-button";
 import {
   Badge,
@@ -148,6 +149,7 @@ export default async function AssinaturaPage() {
                             text={(i.pix_code ?? i.boleto_line)!}
                             label={i.pix_code ? "Copiar Pix" : "Copiar linha"}
                           />
+                          <PaymentLink url={i.payment_url} label="Abrir fatura" />
                           {b.sandbox && manage && (
                             <ActionForm
                               action={simulateInvoiceAction.bind(null, i.id)}

@@ -106,6 +106,9 @@ class SandboxProvider:
             raw=data,
         )
 
+    def fetch_event(self, external_id: str) -> ProviderEvent | None:
+        return None  # o simulador só muda de situação pelo botão "simular"
+
     # ── simulador ──
 
     def build_event(

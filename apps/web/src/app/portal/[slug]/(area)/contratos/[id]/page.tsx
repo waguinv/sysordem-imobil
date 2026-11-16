@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm, selectClass } from "@/components/ui/action-form";
+import { PaymentLink } from "@/components/finance/payment-link";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Badge, Card, CardContent, CardHeader, CardTitle } from "@/components/ui/primitives";
 import { portalChargeAction } from "@/lib/actions-portal";
@@ -139,6 +140,7 @@ export default async function PortalContractPage({
                             <CopyButton text={ch.boleto_line} label="Copiar linha digitável" />
                           </div>
                         )}
+                        <PaymentLink url={ch.payment_url} label="Abrir QR Code / boleto em PDF" />
                         <p className="text-muted-foreground text-xs">
                           O pagamento aparece aqui quando o banco confirmar (pode levar alguns minutos).
                         </p>

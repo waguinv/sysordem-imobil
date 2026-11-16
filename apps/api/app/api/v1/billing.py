@@ -37,7 +37,7 @@ from app.models import (
 from app.services import audit
 from app.services import subscription as svc
 from app.services.finance import money
-from app.services.psp.base import EVENT_PAID, InvalidSignatureError
+from app.services.psp.base import EVENT_PAID, InvalidSignatureError, ProviderError
 from app.services.psp.sandbox import SandboxProvider
 
 log = logging.getLogger("imobil.billing")
@@ -240,6 +240,7 @@ class InvoiceOut(BaseModel):
     method: str | None
     pix_code: str | None
     boleto_line: str | None
+    payment_url: str | None
     paid_at: datetime | None
     divergence: str | None
 
@@ -280,6 +281,7 @@ def _invoice_out(i: SubscriptionInvoice) -> InvoiceOut:
         method=i.method,
         pix_code=i.pix_code,
         boleto_line=i.boleto_line,
+        payment_url=i.payment_url,
         paid_at=i.paid_at,
         divergence=i.divergence,
     )
@@ -417,6 +419,35 @@ async def _raw_body(request: Request) -> bytes:
     if len(body) > MAX_WEBHOOK_BYTES:
         raise HTTPException(status_code=413, detail="Corpo muito grande")
     return body
+
+
+@router.post("/webhooks/billing/asaas", include_in_schema=not get_settings().is_production)
+def billing_webhook_asaas(
+    request: Request, body: bytes = Depends(_raw_body), db: Session = DB_DEPENDS
+) -> dict[str, str]:
+    """Webhook ÚNICO da conta Asaas da plataforma: a empresa vem da referência da fatura
+    (`<empresa>:<fatura>`), lida só depois do token conferido e do pagamento confirmado na API."""
+    p = svc.billing_provider("asaas")
+    if p is None:
+        raise HTTPException(status_code=404, detail="Provedor desconhecido")
+    try:
+        p.verify_webhook(request.headers, body)
+    except InvalidSignatureError as e:
+        log.warning("webhook de assinatura asaas rejeitado: %s", e)
+        raise HTTPException(status_code=401, detail="Assinatura inválida") from None
+    try:
+        ev = p.parse_webhook(body)
+    except InvalidSignatureError:
+        raise HTTPException(status_code=400, detail="Evento malformado") from None
+    except ProviderError:
+        raise HTTPException(status_code=503, detail="Confirmação no PSP indisponível") from None
+    tenant_id = svc.tenant_from_reference(ev.reference)
+    tenant = db.get(Tenant, tenant_id) if tenant_id else None
+    if tenant is None or tenant_id is None:
+        log.info("webhook de assinatura asaas sem empresa conhecida (%s)", ev.type)
+        return {"status": "ignorado"}
+    set_tenant(db, tenant_id)
+    return {"status": svc.process_event(db, tenant_id=tenant_id, provider=p, event=ev)}
 
 
 @router.post("/webhooks/billing/{provider}/{tenant_id}", include_in_schema=not get_settings().is_production)

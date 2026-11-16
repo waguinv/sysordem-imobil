@@ -36,6 +36,7 @@ export type SubscriptionInvoice = {
   method: string | null;
   pix_code: string | null;
   boleto_line: string | null;
+  payment_url: string | null;
   paid_at: string | null;
   /** pagamento confirmado pelo PSP que não pôde ser aplicado (a menor, em duplicidade) */
   divergence: string | null;

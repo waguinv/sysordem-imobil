@@ -1,5 +1,6 @@
 import { FlaskConical, QrCode } from "lucide-react";
 import Link from "next/link";
+import { PaymentLink } from "@/components/finance/payment-link";
 import { ActionForm, Field, selectClass } from "@/components/ui/action-form";
 import { CopyButton } from "@/components/ui/copy-button";
 import {
@@ -16,6 +17,7 @@ import {
   issueChargeAction,
   resolveChargeAction,
   simulateChargeAction,
+  syncChargeAction,
 } from "@/lib/actions-fase4a";
 import { brl, CHARGE_METHOD, CHARGE_STATUS, dateBR, dateTime } from "@/lib/format";
 import type { Charge, PaymentProviderInfo } from "@/lib/types";
@@ -30,7 +32,10 @@ export function ChargeCode({ charge }: { charge: Charge }) {
         {charge.method === "pix" ? "Pix copia e cola" : "Linha digitável"}
       </p>
       <code className="bg-muted block rounded-md p-2 text-xs break-all select-all">{code}</code>
-      <CopyButton text={code} />
+      <div className="flex flex-wrap items-center gap-3">
+        <CopyButton text={code} />
+        <PaymentLink url={charge.payment_url} />
+      </div>
     </div>
   );
 }
@@ -48,8 +53,21 @@ export function ChargeActions({
   sandbox: boolean;
 }) {
   const pending = charge.status === "pendente";
+  const syncable =
+    charge.provider !== "sandbox" && ["pendente", "cancelada", "expirada"].includes(charge.status);
   return (
     <div className="space-y-3">
+      {syncable && canManage && (
+        <ActionForm
+          action={syncChargeAction.bind(null, charge.id)}
+          submitLabel="Atualizar situação no Asaas"
+          submitVariant="outline"
+        >
+          <p className="text-muted-foreground text-xs">
+            O pagamento costuma chegar sozinho pelo aviso do Asaas. Se demorar, consulte direto.
+          </p>
+        </ActionForm>
+      )}
       {pending && canManage && sandbox && charge.provider === "sandbox" && (
         <details className="rounded-md border border-dashed p-3">
           <summary className="text-brand-institutional flex cursor-pointer items-center gap-1.5 text-sm font-medium">
@@ -206,7 +224,13 @@ export function ChargePanel({
               </p>
             </ActionForm>
           ) : (
-            <p className="text-muted-foreground text-sm">Nenhum provedor de pagamento habilitado.</p>
+            <p className="text-muted-foreground text-sm">
+              Nenhum provedor de pagamento habilitado. Ligue a conta Asaas da empresa em{" "}
+              <Link href="/app/configuracoes/recebimentos" className="underline">
+                Configurações → Recebimentos
+              </Link>
+              .
+            </p>
           )
         ) : (
           !history.length && <p className="text-muted-foreground text-sm">Nenhuma cobrança emitida.</p>

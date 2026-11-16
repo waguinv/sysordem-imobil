@@ -19,7 +19,7 @@ from app.core.db import DB_DEPENDS, set_tenant
 from app.models import Charge, Customer, Installment, SalesContract, Tenant, User, WebhookEvent
 from app.services import charges as svc
 from app.services import psp
-from app.services.psp.base import InvalidSignatureError
+from app.services.psp.base import InvalidSignatureError, ProviderError
 
 router = APIRouter(tags=["cobranças"])
 log = logging.getLogger("imobil.webhooks")
@@ -70,6 +70,7 @@ class ChargeOut(BaseModel):
     status: str
     pix_code: str | None
     boleto_line: str | None
+    payment_url: str | None
     paid_amount: Decimal | None
     paid_on: date | None
     payment_id: uuid.UUID | None
@@ -111,8 +112,7 @@ class ChargesSummaryOut(BaseModel):
 
 
 def _label(provider: str) -> str:
-    p = psp.get_provider(provider)
-    return p.label if p else provider
+    return psp.label(provider)
 
 
 def _query(ctx: AuthContext) -> Any:
@@ -145,6 +145,7 @@ def _out(row: Any) -> ChargeOut:
         status=c.status,
         pix_code=c.pix_code,
         boleto_line=c.boleto_line,
+        payment_url=c.payment_url,
         paid_amount=c.paid_amount,
         paid_on=c.paid_on,
         payment_id=c.payment_id,
@@ -190,7 +191,12 @@ def _business(e: svc.ChargeError) -> HTTPException:
 
 @router.get("/payment-providers", response_model=list[ProviderOut])
 def list_providers(ctx: AuthContext = Depends(require(Perm.FINANCE_VIEW))) -> list[ProviderOut]:
-    return [ProviderOut(name=p.name, label=p.label, sandbox=p.name == "sandbox") for p in psp.available()]
+    return [
+        ProviderOut(
+            name=p.name, label=p.label, sandbox=p.name == "sandbox" or bool(getattr(p, "is_sandbox", False))
+        )
+        for p in psp.available(ctx.db, ctx.tenant_id)
+    ]
 
 
 @router.get("/charges", response_model=list[ChargeOut])
@@ -300,6 +306,18 @@ def resolve_charge(
     return _detail(ctx, charge_id)
 
 
+@router.post("/charges/{charge_id}/sync", response_model=SimulateOut)
+def sync_charge(
+    charge_id: uuid.UUID, ctx: AuthContext = Depends(require(Perm.FINANCE_MANAGE))
+) -> SimulateOut:
+    """Consulta a situação da cobrança no PSP (webhook atrasado/perdido) e aplica o que mudou."""
+    try:
+        out = svc.sync_charge(ctx.db, tenant_id=ctx.tenant_id, charge_id=charge_id)
+    except svc.ChargeError as e:
+        raise _business(e) from None
+    return SimulateOut(result=out.result, detail=out.detail, charge=_detail(ctx, charge_id))
+
+
 @router.post("/charges/{charge_id}/sandbox/simulate", response_model=SimulateOut)
 def simulate_charge(
     charge_id: uuid.UUID, body: SimulateIn, ctx: AuthContext = Depends(require(Perm.FINANCE_MANAGE))
@@ -339,10 +357,18 @@ def payment_webhook(
 ) -> dict[str, str]:
     """Notificação do PSP. Sem token de usuário: a autenticação é a assinatura do provedor.
 
-    A empresa vem da URL configurada no PSP; a cobrança é procurada SÓ dentro dela (RLS). Resposta
-    2xx = "recebido, não reenvie" — inclusive para duplicados e eventos ignorados.
+    A empresa vem da URL configurada no PSP; a credencial (Asaas) e a cobrança são procuradas SÓ dentro
+    dela (RLS). Resposta 2xx = "recebido, não reenvie" — inclusive para duplicados e eventos ignorados;
+    503 = PSP fora do ar na confirmação, reenvie depois.
     """
-    p = psp.get_provider(provider)
+    tenant = db.get(Tenant, tenant_id)
+    if tenant is None or not tenant.is_active:
+        raise HTTPException(status_code=404, detail="Destino desconhecido")
+    set_tenant(db, tenant_id)
+    try:
+        p = psp.get_provider(provider, db, tenant_id)
+    except ProviderError:
+        raise HTTPException(status_code=503, detail="Provedor indisponível") from None
     if p is None:
         raise HTTPException(status_code=404, detail="Provedor desconhecido")
     try:
@@ -350,12 +376,11 @@ def payment_webhook(
     except InvalidSignatureError as e:
         log.warning("webhook %s rejeitado: %s", provider, e)
         raise HTTPException(status_code=401, detail="Assinatura inválida") from None
-    tenant = db.get(Tenant, tenant_id)
-    if tenant is None or not tenant.is_active:
-        raise HTTPException(status_code=404, detail="Destino desconhecido")
-    set_tenant(db, tenant_id)
     try:
         out = svc.process_webhook(db, tenant_id=tenant_id, provider=p, body=body)
     except InvalidSignatureError:
         raise HTTPException(status_code=400, detail="Evento malformado") from None
+    except ProviderError:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Confirmação no PSP indisponível") from None
     return {"status": out.result}

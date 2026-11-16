@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     # Janela aceita para o carimbo de tempo do webhook (proteção contra replay)
     payments_webhook_tolerance_seconds: int = 300
 
+    # PSP real: Asaas (API v3).
+    # - Empresas: cada uma liga a PRÓPRIA conta Asaas em Configurações → Recebimentos (o dinheiro cai na
+    #   conta dela). A chave de API fica cifrada no banco (AES-256-GCM) com PAYMENTS_CREDENTIALS_KEY
+    #   (base64 de 32 bytes, fora do banco e do Git); o webhook é registrado na conta dela com um token
+    #   próprio, guardado só como hash.
+    # - Plataforma (assinatura SaaS): conta Asaas da SysOrdem, configurada só pelo ambiente.
+    payments_credentials_key: str | None = None
+    public_api_url: str | None = None  # ex.: https://api.imobil.sysordemsistemas.com.br (URL dos webhooks)
+    asaas_http_timeout_seconds: float = 20.0
+    billing_asaas_api_key: str | None = None
+    billing_asaas_environment: str = "sandbox"  # sandbox | production
+    billing_asaas_webhook_token: str | None = Field(default=None, min_length=32)
+
     # Assinatura eletrônica. Provedor real: Documenso auto-hospedado (API v2). O simulador ("sandbox")
     # fica fora de produção por padrão, como o de pagamentos.
     documenso_url: str | None = None  # ex.: https://assinar.suaempresa.com.br (sem /api/v2)
@@ -100,6 +113,32 @@ class Settings(BaseSettings):
             raise ValueError("Configuração do Documenso ainda está com o valor de exemplo")
         return str(v).strip()
 
+    @field_validator(
+        "payments_credentials_key",
+        "public_api_url",
+        "billing_asaas_api_key",
+        "billing_asaas_webhook_token",
+        mode="before",
+    )
+    @classmethod
+    def _blank_asaas(cls, v: str | None) -> str | None:
+        if v is None or not str(v).strip():
+            return None
+        if str(v).upper().startswith("CHANGE_ME"):
+            raise ValueError("Configuração do Asaas ainda está com o valor de exemplo")
+        return str(v).strip().rstrip("/")
+
+    @field_validator("billing_asaas_environment")
+    @classmethod
+    def _asaas_env(cls, v: str) -> str:
+        if v not in ("sandbox", "production"):
+            raise ValueError("BILLING_ASAAS_ENVIRONMENT deve ser sandbox ou production")
+        return v
+
+    @property
+    def billing_asaas_configured(self) -> bool:
+        return bool(self.billing_asaas_api_key and self.billing_asaas_webhook_token)
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -127,6 +166,10 @@ class Settings(BaseSettings):
             problems.append("PAYMENTS_SANDBOX_ENABLED não pode ser ligado em produção")
         if self.esign_sandbox_enabled:
             problems.append("ESIGN_SANDBOX_ENABLED não pode ser ligado em produção")
+        if self.billing_asaas_api_key and self.billing_asaas_environment != "production":
+            problems.append("BILLING_ASAAS_ENVIRONMENT precisa ser production em produção")
+        if self.public_api_url and not self.public_api_url.startswith("https://"):
+            problems.append("PUBLIC_API_URL precisa ser https em produção")
         if len(self.jwt_secret) < 48:
             problems.append("JWT_SECRET deve ter 48+ caracteres em produção")
         if problems:

@@ -17,6 +17,8 @@ SaaS multiempresa para gestão de loteamentos de terrenos e chácaras: empreendi
 > revisões profissionais ainda pendentes.
 > Ainda **não** há PSP real (Fase 4c), console do operador SaaS nem correção monetária.
 > Não use dados reais nem publique em produção — ver [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
+> **Pagamentos:** Pix e boleto reais pelo Asaas (conta de cada empresa + conta da plataforma para a assinatura) — ver [docs/PAGAMENTOS_ASAAS.md](docs/PAGAMENTOS_ASAAS.md).
+>
 > **Assinatura eletrônica:** contratos enviados ao Documenso auto-hospedado (ou ao simulador em desenvolvimento) — ver [docs/ASSINATURA_ELETRONICA.md](docs/ASSINATURA_ELETRONICA.md).
 
 ## Stack

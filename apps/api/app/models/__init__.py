@@ -48,6 +48,7 @@ class Tenant(Base):
     slug: Mapped[str] = mapped_column(String(60), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    document: Mapped[str | None] = mapped_column(String(20))  # CNPJ/CPF só dígitos (cobrança da assinatura)
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -604,6 +605,7 @@ class Charge(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")
     pix_code: Mapped[str | None] = mapped_column(Text)
     boleto_line: Mapped[str | None] = mapped_column(String(80))
+    payment_url: Mapped[str | None] = mapped_column(Text)
     paid_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     paid_on: Mapped[date | None] = mapped_column(Date)
     payment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
@@ -825,6 +827,7 @@ class SubscriptionInvoice(Base):
     external_id: Mapped[str | None] = mapped_column(String(100))
     pix_code: Mapped[str | None] = mapped_column(Text)
     boleto_line: Mapped[str | None] = mapped_column(String(80))
+    payment_url: Mapped[str | None] = mapped_column(Text)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     paid_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     # pagamento confirmado que não pôde ser aplicado (a menor, em duplicidade) — visível à empresa
@@ -874,3 +877,26 @@ class SignatureRequest(Base):
     created_at: Mapped[datetime] = _created_at()
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PaymentAccount(Base):
+    """Conta de PSP da empresa (Asaas). Chave de API cifrada; token do webhook só como hash."""
+
+    __tablename__ = "payment_accounts"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), primary_key=True
+    )
+    provider: Mapped[str] = mapped_column(String(30), nullable=False)
+    environment: Mapped[str] = mapped_column(String(20), nullable=False)  # sandbox | production
+    api_key_sealed: Mapped[str] = mapped_column(Text, nullable=False)
+    api_key_hint: Mapped[str] = mapped_column(String(12), nullable=False)  # "…1a2b" para conferência
+    account_name: Mapped[str | None] = mapped_column(String(160))
+    webhook_id: Mapped[str | None] = mapped_column(String(100))
+    webhook_token_sha256: Mapped[str | None] = mapped_column(String(64))
+    webhook_url: Mapped[str | None] = mapped_column(Text)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
