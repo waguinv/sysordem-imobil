@@ -100,6 +100,11 @@ export const NAV: NavEntry[] = [
         href: "/app/configuracoes/financeiro",
         permission: "settings:manage",
       },
+      {
+        title: "Recebimentos (Asaas)",
+        href: "/app/configuracoes/recebimentos",
+        permission: "settings:manage",
+      },
       { title: "Empresa", href: "/app/empresa", icon: Building2, permission: "tenant:view", soon: "Fase 5" },
     ],
   },

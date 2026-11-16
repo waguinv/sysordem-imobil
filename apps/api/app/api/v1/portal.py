@@ -195,6 +195,7 @@ class PortalChargeOut(BaseModel):
     due_date: date
     pix_code: str | None
     boleto_line: str | None
+    payment_url: str | None
 
 
 class PortalInstallmentOut(BaseModel):
@@ -338,6 +339,7 @@ def _charge_out(ch: Charge | None) -> PortalChargeOut | None:
         due_date=ch.due_date,
         pix_code=ch.pix_code,
         boleto_line=ch.boleto_line,
+        payment_url=ch.payment_url,
     )
 
 

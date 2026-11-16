@@ -41,7 +41,8 @@ from app.models import (
 )
 from app.services import audit
 from app.services.finance import add_months
-from app.services.psp.base import EVENT_PAID, ChargeRequest, PaymentProvider, ProviderError
+from app.services.psp.asaas import AsaasClient, AsaasProvider, token_hash
+from app.services.psp.base import EVENT_PAID, ChargeRequest, PaymentProvider, ProviderError, ProviderEvent
 from app.services.psp.sandbox import SandboxProvider
 
 log = logging.getLogger("imobil.subscription")
@@ -86,10 +87,30 @@ _SANDBOX = SandboxProvider()
 
 
 def billing_provider(name: str | None = None) -> PaymentProvider | None:
-    """PSP da plataforma. Hoje só o sandbox (fora de produção); o PSP real entra aqui."""
-    if get_settings().billing_sandbox and name in (None, _SANDBOX.name):
+    """PSP da plataforma: a conta Asaas da SysOrdem (BILLING_ASAAS_*), se configurada; senão o sandbox
+    (fora de produção). Uma fatura já emitida sempre volta ao provedor gravado nela."""
+    s = get_settings()
+    if s.billing_asaas_configured and name in (None, "asaas"):
+        assert s.billing_asaas_api_key and s.billing_asaas_webhook_token
+        return AsaasProvider(
+            AsaasClient(s.billing_asaas_api_key, s.billing_asaas_environment),
+            webhook_token_sha256=token_hash(s.billing_asaas_webhook_token),
+        )
+    if s.billing_sandbox and name in (None, _SANDBOX.name):
         return _SANDBOX
     return None
+
+
+def invoice_reference(tenant_id: uuid.UUID, invoice_id: uuid.UUID) -> str:
+    """Referência enviada ao PSP: o webhook único da conta da plataforma descobre a empresa por ela."""
+    return f"{tenant_id}:{invoice_id}"
+
+
+def tenant_from_reference(reference: str | None) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(reference.split(":", 1)[0]) if reference and ":" in reference else None
+    except ValueError:
+        return None
 
 
 def can_write(db: Session, tenant_id: uuid.UUID, today: date | None = None) -> bool:
@@ -367,16 +388,21 @@ def pay(
         raise SubscriptionError("Pagamento da assinatura indisponível neste ambiente")
     tenant = db.get(Tenant, tenant_id)
     assert tenant is not None
+    if provider.name != _SANDBOX.name and not tenant.document:
+        raise SubscriptionError(
+            "Informe o CNPJ da empresa (Configurações → Recebimentos) para gerar a fatura"
+        )
     due = max(inv.due_date, business_today())
     try:
         issued = provider.create_charge(
             ChargeRequest(
-                reference=str(inv.id),
+                reference=invoice_reference(tenant_id, inv.id),
                 method="boleto" if method == "boleto" else "pix",
                 amount=inv.amount,
                 due_date=due,
                 payer_name=tenant.name,
-                payer_document=None,
+                payer_document=tenant.document,
+                payer_reference=f"empresa:{tenant_id}",
                 description=f"Assinatura SysOrdem Imobil {inv.period_start:%m/%Y}",
             )
         )
@@ -387,6 +413,7 @@ def pay(
     inv.external_id = issued.external_id
     inv.pix_code = issued.pix_code
     inv.boleto_line = issued.boleto_line
+    inv.payment_url = issued.payment_url
     db.flush()
     audit.record(
         db,
@@ -400,13 +427,20 @@ def pay(
     return inv
 
 
-def process_event(db: Session, *, tenant_id: uuid.UUID, provider: PaymentProvider, body: bytes) -> str:
+def process_event(
+    db: Session,
+    *,
+    tenant_id: uuid.UUID,
+    provider: PaymentProvider,
+    body: bytes = b"",
+    event: ProviderEvent | None = None,
+) -> str:
     """Webhook JÁ AUTENTICADO do PSP da plataforma. Idempotente por (empresa, provedor, evento).
 
     As mudanças na fatura são gravadas FORA do savepoint do evento: um erro inesperado derruba a
     transação (o PSP reenvia), em vez de virar um "duplicado" que esconde um pagamento.
     """
-    ev = provider.parse_webhook(body)
+    ev = event or provider.parse_webhook(body)
     if db.scalar(
         select(BillingEvent.id).where(
             BillingEvent.tenant_id == tenant_id,

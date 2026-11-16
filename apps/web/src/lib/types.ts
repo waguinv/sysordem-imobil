@@ -481,6 +481,7 @@ export type Charge = {
   status: "pendente" | "paga" | "cancelada" | "expirada" | "divergente" | "resolvida";
   pix_code: string | null;
   boleto_line: string | null;
+  payment_url: string | null;
   paid_amount: string | null;
   paid_on: string | null;
   payment_id: string | null;
@@ -605,4 +606,19 @@ export type SignatureRequest = {
   created_at: string;
   completed_at: string | null;
   closed_at: string | null;
+};
+
+/** Configurações → Recebimentos: conta Asaas da empresa (a chave nunca volta da API). */
+export type PaymentAccount = {
+  configured: boolean;
+  credentials_available: boolean;
+  environments: ("sandbox" | "production")[];
+  provider: string | null;
+  environment: "sandbox" | "production" | null;
+  account_name: string | null;
+  api_key_hint: string | null;
+  webhook: boolean;
+  webhook_url: string | null;
+  pending_charges: number;
+  company_document: string | null;
 };

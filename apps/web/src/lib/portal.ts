@@ -48,6 +48,7 @@ export type PortalCharge = {
   due_date: string;
   pix_code: string | null;
   boleto_line: string | null;
+  payment_url: string | null;
 };
 
 export type PortalContract = {

@@ -37,9 +37,10 @@ from app.services.psp.base import (
     ChargeRequest,
     PaymentProvider,
     ProviderError,
+    ProviderEvent,
 )
 from app.services.psp.sandbox import SandboxProvider
-from app.services.receivables import ReceivableError, quote_installment, register_payment
+from app.services.receivables import ReceivableError, charges_for, quote_installment, register_payment
 
 log = logging.getLogger("imobil.charges")
 
@@ -70,8 +71,11 @@ def _lock_charge(db: Session, tenant_id: uuid.UUID, charge_id: uuid.UUID) -> Cha
     return c
 
 
-def _provider_for(c: Charge) -> PaymentProvider:
-    p = psp.get_provider(c.provider)
+def _provider_for(db: Session, c: Charge) -> PaymentProvider:
+    try:
+        p = psp.get_provider(c.provider, db, c.tenant_id)
+    except ProviderError as e:
+        raise ChargeError(str(e)) from None
     if p is None:
         raise ChargeError(f"Provedor de pagamento '{c.provider}' não está habilitado neste ambiente")
     return p
@@ -90,7 +94,10 @@ def issue_charge(
     actor: uuid.UUID | None,
     origin: str = "equipe",
 ) -> Charge:
-    provider = psp.default_provider()
+    try:
+        provider = psp.default_provider(db, tenant_id)
+    except ProviderError as e:
+        raise ChargeError(str(e)) from None
     if provider is None:
         raise ChargeError("Nenhum provedor de pagamento habilitado neste ambiente")
     inst = db.scalar(
@@ -119,6 +126,9 @@ def issue_charge(
     assert customer is not None
     # Valor na data de vencimento da cobrança (com multa/mora se a parcela já estiver atrasada)
     amount = quote_installment(db, inst, due).total
+    # Encargos pelo PSP só se a parcela ainda não venceu e a cobrança vence junto com ela; atrasada, o
+    # valor do dia já inclui multa/mora e o PSP não acrescenta nada (evita cobrar encargo duas vezes).
+    late = charges_for(db, inst) if due == inst.due_date and inst.due_date >= today else None
 
     charge_id = uuid.uuid4()
     label = "Entrada" if inst.number == 0 else f"Parcela {inst.number}"
@@ -132,6 +142,9 @@ def issue_charge(
                 payer_name=customer.name,
                 payer_document=customer.document,
                 description=f"{label} do contrato {contract.number}",
+                payer_reference=str(customer.id),
+                late_fee_pct=late.late_fee_pct if late else None,
+                late_interest_monthly_pct=late.late_interest_monthly_pct if late else None,
             )
         )
     except ProviderError as e:
@@ -150,6 +163,7 @@ def issue_charge(
         status="pendente",
         pix_code=issued.pix_code,
         boleto_line=issued.boleto_line,
+        payment_url=issued.payment_url,
         created_by=actor,
     )
     try:
@@ -193,7 +207,7 @@ def cancel_charge(
     c = _lock_charge(db, tenant_id, charge_id)
     if c.status != "pendente":
         raise ChargeError(f"Só cobrança pendente pode ser cancelada (situação: {c.status})")
-    provider = _provider_for(c)
+    provider = _provider_for(db, c)
     try:
         provider.cancel_charge(c.external_id)
     except ProviderError as e:
@@ -255,7 +269,10 @@ def cancel_pending_for(
         .with_for_update()
     ).all()
     for c in charges:
-        p = psp.get_provider(c.provider)
+        try:
+            p = psp.get_provider(c.provider, db, tenant_id)
+        except ProviderError:
+            p = None
         cancelled_at_psp = _safe_cancel(p, c.external_id) if p else False
         c.status = "cancelada"
         c.status_reason = reason if cancelled_at_psp else f"{reason} (não confirmado no PSP)"
@@ -303,7 +320,13 @@ def process_webhook(
     db: Session, *, tenant_id: uuid.UUID, provider: PaymentProvider, body: bytes
 ) -> WebhookOutcome:
     """Processa um webhook JÁ AUTENTICADO (`provider.verify_webhook`) no contexto do tenant."""
-    ev = provider.parse_webhook(body)
+    return process_event(db, tenant_id=tenant_id, provider=provider, ev=provider.parse_webhook(body))
+
+
+def process_event(
+    db: Session, *, tenant_id: uuid.UUID, provider: PaymentProvider, ev: ProviderEvent
+) -> WebhookOutcome:
+    """Evento do PSP (webhook autenticado ou consulta direta) → efeito idempotente na cobrança."""
     dedup = (
         WebhookEvent.tenant_id == tenant_id,
         WebhookEvent.provider == provider.name,
@@ -436,6 +459,23 @@ def _apply(
         return "processado", None
 
     return "ignorado", f"tipo de evento não tratado: {etype}"
+
+
+def sync_charge(db: Session, *, tenant_id: uuid.UUID, charge_id: uuid.UUID) -> WebhookOutcome:
+    """Consulta a cobrança no PSP e aplica o que mudou (rede de segurança para webhook perdido)."""
+    c = db.scalar(select(Charge).where(Charge.id == charge_id, Charge.tenant_id == tenant_id))
+    if c is None:
+        raise ChargeNotFoundError("Cobrança não encontrada")
+    if c.status not in ("pendente", "cancelada", "expirada"):
+        return WebhookOutcome("ignorado", f"cobrança já {c.status}", c.id)
+    provider = _provider_for(db, c)
+    try:
+        ev = provider.fetch_event(c.external_id)
+    except ProviderError as e:
+        raise ChargeError(f"Não foi possível consultar o PSP: {e}") from None
+    if ev is None:
+        return WebhookOutcome("sem_alteracao", "nada novo no PSP", c.id)
+    return process_event(db, tenant_id=tenant_id, provider=provider, ev=ev)
 
 
 # ─────────────────────────── simulador (sandbox) ───────────────────────────

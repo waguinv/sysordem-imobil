@@ -28,6 +28,7 @@ class TenantOut(BaseModel):
     id: uuid.UUID
     slug: str
     name: str
+    document: str | None = None
 
 
 class MeOut(BaseModel):

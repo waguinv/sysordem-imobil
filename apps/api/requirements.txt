@@ -10,3 +10,4 @@ argon2-cffi>=23.1,<26.0
 tzdata>=2024.1  # fuso horário da empresa (zoneinfo) também em imagens sem /usr/share/zoneinfo
 fpdf2>=2.8,<3.0  # PDF do quadro-resumo do contrato (assinatura eletrônica)
 httpx>=0.27,<1.0  # cliente HTTP do provedor de assinatura
+cryptography>=44,<51  # chaves de API dos PSPs das empresas cifradas no banco (AES-256-GCM)
