@@ -24,6 +24,8 @@ for env in producao staging; do
     chmod 600 "$dest/chaves/$key" 2>/dev/null || true
   fi
 
+  # shellcheck disable=SC2029  # $dir é fixo e expandido aqui de propósito
+  lista="$(ssh "${ssh_opts[@]}" "$host" "ls -1 $dir/backups/*.dump.enc 2>/dev/null || true")"
   novos=0
   while IFS= read -r f; do
     [ -n "$f" ] || continue
@@ -32,7 +34,7 @@ for env in producao staging; do
     scp -q "${ssh_opts[@]}" "$host:$f" "$host:$f.sha256" "$dest/$env/"
     (cd "$dest/$env" && sha256sum -c --quiet "$nome.sha256")
     novos=$((novos + 1))
-  done < <(ssh "${ssh_opts[@]}" "$host" "ls -1 $dir/backups/*.dump.enc 2>/dev/null || true")
+  done <<< "$lista"
 
   echo "$env: $novos backup(s) novo(s) em $dest/$env"
 done
