@@ -62,8 +62,15 @@ O nginx já expõe só `/api/v1/webhooks/` e `/health` na API pública.
 ```bash
 cd apps/api && python -m scripts.asaas_smoke   # lê ASAAS_SANDBOX_API_KEY do ambiente ou do .env da raiz
 ```
-O script cria um Pix de R$ 12,34, confirma o pagamento pelo endpoint de simulação do sandbox, confere a
-consulta, emite e cancela um boleto. Ele recusa chave de produção. Os testes automatizados (`tests/test_asaas.py`)
+O script cria um Pix de R$ 12,34 (ou um boleto, se o Pix da conta ainda não estiver liberado), confirma o
+pagamento pelo endpoint de simulação do sandbox, confere a consulta, emite e cancela um boleto.
+
+**Resultado em 16/11/2026, contra o sandbox real**: chave validada; boleto emitido com linha digitável e link da
+fatura; o pagamento simulado virou `charge.paid` com o valor certo; o cancelamento virou `charge.cancelled`; o
+Asaas recusou cancelar uma cobrança já paga. Também passou o fluxo completo pela API local: conta ligada, boleto
+da parcela, pagamento simulado, "Atualizar situação", cobrança paga e parcela quitada.
+**Pix**: o Asaas só libera Pix para conta **aprovada** (com chave Pix cadastrada). Antes disso, a emissão Pix
+devolve a mensagem do Asaas ("O Pix não está disponível no momento…") e o boleto funciona normalmente. Ele recusa chave de produção. Os testes automatizados (`tests/test_asaas.py`)
 usam um Asaas falso que segue a API v3.
 
 ## Pendências
