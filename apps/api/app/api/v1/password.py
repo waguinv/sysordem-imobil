@@ -136,15 +136,15 @@ def reset(body: ResetIn, db: Session = DB_DEPENDS) -> ResetOut:
             raise _BAD_LINK from None
         raise _error(e) from None
     slug = None
-    if info.token.tenant_id is not None:
-        set_tenant(db, info.token.tenant_id)
+    if info.token.origin_tenant_id is not None:
+        set_tenant(db, info.token.origin_tenant_id)
         from app.models import Tenant
 
-        tenant = db.get(Tenant, info.token.tenant_id)
+        tenant = db.get(Tenant, info.token.origin_tenant_id)
         slug = tenant.slug if tenant else None
         audit.record(
             db,
-            tenant_id=info.token.tenant_id,
+            tenant_id=info.token.origin_tenant_id,
             actor_user_id=info.user.id,
             action="auth.invite_accept" if info.token.purpose == "convite" else "auth.password_reset",
             entity="user",

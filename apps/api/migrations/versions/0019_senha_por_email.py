@@ -40,7 +40,8 @@ def upgrade() -> None:
         sa.Column("user_id", uuid, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("purpose", sa.String(20), nullable=False),
         sa.Column("token_hash", sa.String(64), nullable=False, unique=True),
-        sa.Column("tenant_id", uuid, sa.ForeignKey("tenants.id")),  # empresa do convite / do pedido
+        # empresa do convite / do pedido (só referência: a tabela é global, sem RLS, como `users`)
+        sa.Column("origin_tenant_id", uuid, sa.ForeignKey("tenants.id")),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("used_at", sa.DateTime(timezone=True)),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),

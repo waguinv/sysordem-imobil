@@ -101,7 +101,11 @@ def issue_token(db: Session, user: User, *, purpose: str, tenant_id: uuid.UUID |
     )
     db.add(
         PasswordToken(
-            user_id=user.id, purpose=purpose, token_hash=_hash(raw), tenant_id=tenant_id, expires_at=now + ttl
+            user_id=user.id,
+            purpose=purpose,
+            token_hash=_hash(raw),
+            origin_tenant_id=tenant_id,
+            expires_at=now + ttl,
         )
     )
     db.flush()
