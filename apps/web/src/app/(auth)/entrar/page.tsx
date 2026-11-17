@@ -4,8 +4,12 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Entrar" };
 
-export default async function EntrarPage({ searchParams }: { searchParams: Promise<{ expirada?: string }> }) {
-  const { expirada } = await searchParams;
+export default async function EntrarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ expirada?: string; senha?: string; empresa?: string }>;
+}) {
+  const { expirada, senha, empresa } = await searchParams;
   return (
     <div className="space-y-6">
       <div className="space-y-1.5">
@@ -17,7 +21,17 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
           Sua sessão expirou ou o acesso foi alterado. Entre novamente.
         </p>
       )}
-      <LoginForm />
+      {senha && (
+        <p role="status" className="bg-brand/10 text-brand-institutional rounded-md px-3 py-2 text-sm">
+          {senha === "criada" ? "Senha criada." : "Senha redefinida."} Entre com a senha nova.
+        </p>
+      )}
+      <LoginForm defaultTenant={empresa?.slice(0, 60)} />
+      <p className="text-center text-sm">
+        <Link href="/esqueci-senha" className="text-brand-institutional underline">
+          Esqueci minha senha
+        </Link>
+      </p>
       <p className="text-muted-foreground text-center text-sm">
         Ainda não usa o SysOrdem Imobil?{" "}
         <Link href="/cadastro" className="text-brand-institutional font-medium underline">

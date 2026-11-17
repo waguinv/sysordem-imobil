@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { Button, Input, Label } from "@/components/ui/primitives";
 import { loginAction, type LoginState } from "@/lib/actions";
 
-export function LoginForm() {
+export function LoginForm({ defaultTenant }: { defaultTenant?: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
   if (state.mfaToken) {
     return (
@@ -51,7 +51,7 @@ export function LoginForm() {
           placeholder="identificador da empresa"
           autoComplete="organization"
           autoCapitalize="none"
-          defaultValue={state.values?.tenant}
+          defaultValue={state.values?.tenant ?? defaultTenant}
           required
         />
       </div>

@@ -18,6 +18,8 @@ export type Me = {
   mfa_enabled: boolean;
   /** perfis críticos (proprietário, administrador, financeiro) */
   mfa_recommended: boolean;
+  /** a API envia e-mail (convite, "esqueci minha senha") */
+  email_enabled: boolean;
 };
 
 export class ApiError extends Error {

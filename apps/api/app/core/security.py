@@ -26,7 +26,10 @@ def verify_password(password: str, password_hash: str | None) -> bool:
         return False
 
 
-def create_access_token(*, user_id: uuid.UUID, tenant_id: uuid.UUID, membership_id: uuid.UUID) -> str:
+def create_access_token(
+    *, user_id: uuid.UUID, tenant_id: uuid.UUID, membership_id: uuid.UUID, password_version: int = 0
+) -> str:
+    """`pwv` = versão da senha na emissão: trocar a senha muda a versão e derruba o token."""
     s = get_settings()
     now = datetime.now(UTC)
     payload = {
@@ -34,6 +37,7 @@ def create_access_token(*, user_id: uuid.UUID, tenant_id: uuid.UUID, membership_
         "sub": str(user_id),
         "tid": str(tenant_id),
         "mid": str(membership_id),
+        "pwv": password_version,
         "iat": now,
         "exp": now + timedelta(minutes=s.access_token_minutes),
         "jti": uuid.uuid4().hex,
@@ -92,7 +96,7 @@ MFA_AUDIENCE = "login-mfa"
 MFA_TOKEN_MINUTES = 5
 
 
-def create_mfa_token(*, user_id: uuid.UUID, tenant_id: uuid.UUID) -> str:
+def create_mfa_token(*, user_id: uuid.UUID, tenant_id: uuid.UUID, password_version: int = 0) -> str:
     """Prova de que a SENHA foi conferida; só serve para informar o código (não é token de acesso:
     tem `aud` e não tem `mid`, então `decode_access_token` recusa)."""
     s = get_settings()
@@ -102,6 +106,7 @@ def create_mfa_token(*, user_id: uuid.UUID, tenant_id: uuid.UUID) -> str:
         "aud": MFA_AUDIENCE,
         "sub": str(user_id),
         "tid": str(tenant_id),
+        "pwv": password_version,
         "iat": now,
         "exp": now + timedelta(minutes=MFA_TOKEN_MINUTES),
         "jti": uuid.uuid4().hex,

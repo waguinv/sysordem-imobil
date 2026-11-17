@@ -17,6 +17,7 @@ from app.api.v1 import (
     esign,
     finance,
     mfa,
+    password,
     payables,
     payment_accounts,
     portal,
@@ -97,6 +98,7 @@ def api_root() -> dict[str, str]:
 
 v1.include_router(auth.router)
 v1.include_router(mfa.router)
+v1.include_router(password.router)
 v1.include_router(tenant.router)
 v1.include_router(developments.router)
 v1.include_router(commercial.router)

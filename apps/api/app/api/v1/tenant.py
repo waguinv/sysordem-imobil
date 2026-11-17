@@ -1,6 +1,7 @@
+import secrets
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.api.v1.schemas import (
@@ -15,7 +16,7 @@ from app.auth.deps import AuthContext, get_auth, require
 from app.auth.rbac import ROLE_LABEL, Perm, Role, can_assign, permissions_for
 from app.core.security import hash_password
 from app.models import AuditEvent, Membership, User
-from app.services import audit, mfa
+from app.services import audit, email, mfa, passwords
 
 router = APIRouter(tags=["tenant"])
 
@@ -49,6 +50,7 @@ def me(ctx: AuthContext = Depends(get_auth)) -> MeOut:
         tenant=TenantOut.model_validate(ctx.tenant),
         mfa_enabled=mfa.is_enabled(ctx.db, ctx.user.id),
         mfa_recommended=ctx.role in MFA_RECOMMENDED,
+        email_enabled=email.enabled(),
     )
 
 
@@ -79,20 +81,34 @@ def _plan_users(ctx: AuthContext) -> None:
 
 @router.post("/members", response_model=MemberOut, status_code=status.HTTP_201_CREATED)
 def create_member(
-    body: MemberCreateIn, ctx: AuthContext = Depends(require(Perm.MEMBERS_MANAGE))
+    body: MemberCreateIn,
+    background: BackgroundTasks,
+    ctx: AuthContext = Depends(require(Perm.MEMBERS_MANAGE)),
 ) -> MemberOut:
     db = ctx.db
     if not can_assign(ctx.role, body.role):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Perfil não pode ser atribuído")
 
     user = db.scalar(select(User).where(func.lower(User.email) == body.email.lower()))
+    invite = False
+    new_user = user is None
     if user is None:
-        if not body.initial_password:
-            raise HTTPException(status_code=422, detail="Senha inicial obrigatória para novo usuário")
+        if not body.initial_password and not email.enabled():
+            raise HTTPException(
+                status_code=422,
+                detail="Defina uma senha inicial: o envio de convite por e-mail não está configurado",
+            )
+        if body.initial_password:
+            try:
+                passwords.validate(body.initial_password, email=body.email)
+            except passwords.PasswordError as e:
+                raise HTTPException(status_code=422, detail=str(e)) from None
+        invite = not body.initial_password
         user = User(
             email=body.email.lower(),
             full_name=body.full_name,
-            password_hash=hash_password(body.initial_password),
+            # convite: senha aleatória que ninguém conhece até a pessoa criar a dela pelo link
+            password_hash=hash_password(body.initial_password or secrets.token_urlsafe(32)),
         )
         db.add(user)
         db.flush()
@@ -116,9 +132,25 @@ def create_member(
         entity="membership",
         entity_id=m.id,
         reason=body.reason,
-        data={"role": m.role},
+        data={"role": m.role, "invite": invite},
     )
-    return _member_out(m)
+    sent = False
+    if invite:
+        raw = passwords.issue_token(db, user, purpose="convite", tenant_id=ctx.tenant_id)
+        subject, text = passwords.invite_email(
+            user, raw, company=ctx.tenant.name, invited_by=ctx.user.full_name
+        )
+        background.add_task(email.send, user.email, subject, text)
+        sent = True
+    elif not new_user and email.enabled():  # já tinha conta: só avisa do novo acesso
+        subject, text = passwords.access_added_email(
+            user, company=ctx.tenant.name, invited_by=ctx.user.full_name, slug=ctx.tenant.slug
+        )
+        background.add_task(email.send, user.email, subject, text)
+        sent = True
+    out = _member_out(m)
+    out.invite_sent = sent
+    return out
 
 
 @router.patch("/members/{member_id}", response_model=MemberOut)

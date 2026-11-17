@@ -55,6 +55,7 @@ class MeOut(BaseModel):
     permissions: list[str]
     mfa_enabled: bool = False
     mfa_recommended: bool = False  # perfis críticos (proprietário, administrador, financeiro)
+    email_enabled: bool = False  # API envia e-mail (convite, "esqueci minha senha")
     tenant: TenantOut
 
 
@@ -67,13 +68,15 @@ class MemberOut(BaseModel):
     is_active: bool
     created_at: datetime
     mfa_enabled: bool = False
+    invite_sent: bool = False  # convite/aviso enviado por e-mail nesta criação
 
 
 class MemberCreateIn(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=2, max_length=160)
     role: Role
-    # Senha inicial só para usuário novo; fluxo de convite por e-mail fica para fase futura.
+    # Usuário novo: sem senha inicial, recebe CONVITE por e-mail para criar a própria senha (exige e-mail
+    # configurado na API); com senha inicial, ela vale como antes.
     initial_password: str | None = Field(default=None, min_length=12, max_length=256)
     reason: str | None = Field(default=None, max_length=500)
 

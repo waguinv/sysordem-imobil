@@ -52,6 +52,19 @@ class Settings(BaseSettings):
     # - Plataforma (assinatura SaaS): conta Asaas da SysOrdem, configurada só pelo ambiente.
     payments_credentials_key: str | None = None
     public_api_url: str | None = None  # ex.: https://api.imobil.sysordemsistemas.com.br (URL dos webhooks)
+
+    # E-mail da API (redefinir senha, convite). Mesmas variáveis SMTP_* do Documenso. Sem SMTP_HOST ou sem
+    # PUBLIC_WEB_URL (endereço do sistema, para os links), o envio fica desligado e nada quebra.
+    public_web_url: str | None = None  # ex.: https://imobil.sysordemsistemas.com.br
+    smtp_host: str | None = None
+    smtp_port: int = 587  # 587 = STARTTLS; 465 = SSL direto
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_address: str | None = None
+    smtp_from_name: str = "SysOrdem Imobil"
+    smtp_timeout_seconds: float = 15.0
+    password_reset_minutes: int = 30
+    invite_days: int = 7
     asaas_http_timeout_seconds: float = 20.0
     billing_asaas_api_key: str | None = None
     billing_asaas_environment: str = "sandbox"  # sandbox | production
@@ -116,6 +129,11 @@ class Settings(BaseSettings):
     @field_validator(
         "payments_credentials_key",
         "public_api_url",
+        "public_web_url",
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
+        "smtp_from_address",
         "billing_asaas_api_key",
         "billing_asaas_webhook_token",
         mode="before",
@@ -134,6 +152,10 @@ class Settings(BaseSettings):
         if v not in ("sandbox", "production"):
             raise ValueError("BILLING_ASAAS_ENVIRONMENT deve ser sandbox ou production")
         return v
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from_address and self.public_web_url)
 
     @property
     def billing_asaas_configured(self) -> bool:
