@@ -84,7 +84,7 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 ## Estado atual
 - `main` = `2583851`; sem PRs abertos.
 - Produção em `sha-2583851` (16/11: estorno automático e cópia externa dos backups). O staging acompanha a `main`.
-- Migrations até **0018**.
+- Migrations até **0019**.
 - Testes: 323 na API (pytest, com PostgreSQL real e RLS) e 28 na web (Vitest). CI: api, web, infra e drill.
 
 ## Pendências (em ordem sugerida)
@@ -96,5 +96,5 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 5. ~~**Estornos:** estorno automático~~ **Feito**: o estorno total no Asaas estorna o recebimento e o parcial é sinalizado (ver PAGAMENTOS_ASAAS.md). Para receber o aviso de estorno parcial, as contas já ligadas precisam ser religadas.
 6. **Backups:** a cópia automática fora do servidor está pronta no código (`deploy/offsite_backup.sh`, com conferência, sem apagar no destino e com aviso ao monitor). **Falta configurar no servidor:** bucket, credencial sem permissão de apagar, rclone e `.env` (passo a passo em CI_CD.md → Backups). Até lá a cópia segue manual (`deploy/pull_backups.sh`).
 7. **Disco da VPS:** acompanhar. É ocupado principalmente por imagens de outros sistemas.
-8. **Segurança de acesso:** verificação em duas etapas entregue (opcional, recomendada para perfis críticos). Falta a redefinição de senha e o convite por e-mail, que dependem de SMTP na API.
+8. **Segurança de acesso:** verificação em duas etapas, troca de senha, "esqueci minha senha" e convite por e-mail entregues. **Falta configurar no servidor:** `SMTP_*` e `PUBLIC_WEB_URL` no `.env` de cada ambiente. Sem isso, o "esqueci minha senha" avisa para procurar o administrador e o convite exige senha inicial.
 9. **Demais decisões abertas:** lista completa em [DECISOES_PENDENTES.md](DECISOES_PENDENTES.md).

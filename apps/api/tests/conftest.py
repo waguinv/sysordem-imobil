@@ -112,6 +112,9 @@ def world(owner_engine) -> World:
     from app.services import login_throttle
 
     login_throttle.reset()
+    from app.services import passwords as passwords_svc
+
+    passwords_svc.reset_throttle()
     from app.services import site as site_svc
 
     site_svc.reset_throttle()
@@ -120,7 +123,7 @@ def world(owner_engine) -> World:
     with owner_engine.begin() as c:
         c.execute(
             text(
-                "TRUNCATE user_mfa_recovery_codes, user_mfa, "
+                "TRUNCATE password_tokens, user_mfa_recovery_codes, user_mfa, "
                 "payment_accounts, signature_requests, billing_events, subscription_invoices, "
                 "tenant_subscriptions, "
                 "portal_tokens, portal_accounts, site_settings, reconciliations, "

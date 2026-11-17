@@ -17,7 +17,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models import Membership, Tenant, User
-from app.services import audit, login_throttle, mfa
+from app.services import audit, login_throttle, mfa, passwords
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -40,7 +40,12 @@ def _issue(db: Session, *, user: User, tenant: Tenant) -> TokenOut | None:
     )
     if membership is None:
         return None
-    token = create_access_token(user_id=user.id, tenant_id=tenant.id, membership_id=membership.id)
+    token = create_access_token(
+        user_id=user.id,
+        tenant_id=tenant.id,
+        membership_id=membership.id,
+        password_version=passwords.password_version(user),
+    )
     return TokenOut(access_token=token, expires_in=get_settings().access_token_minutes * 60)
 
 
@@ -70,7 +75,9 @@ def login(body: LoginIn, db: Session = DB_DEPENDS) -> LoginOut:
         return LoginOut(
             expires_in=MFA_TOKEN_MINUTES * 60,
             mfa_required=True,
-            mfa_token=create_mfa_token(user_id=user.id, tenant_id=tenant.id),
+            mfa_token=create_mfa_token(
+                user_id=user.id, tenant_id=tenant.id, password_version=passwords.password_version(user)
+            ),
         )
     audit.record(
         db, tenant_id=tenant.id, actor_user_id=user.id, action="auth.login", entity="user", entity_id=user.id
@@ -89,13 +96,16 @@ def mfa_login(body: MfaLoginIn, db: Session = DB_DEPENDS) -> TokenOut:
         claims = decode_mfa_token(body.mfa_token)
         user_id = uuid.UUID(claims["sub"])
         tenant_id = uuid.UUID(claims["tid"])
-    except (jwt.PyJWTError, ValueError, KeyError):
+        token_pwv = int(claims.get("pwv", 0))
+    except (jwt.PyJWTError, ValueError, KeyError, TypeError):
         raise _EXPIRED from None
     if login_throttle.is_blocked(*_mfa_key(user_id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Muitas tentativas")
     user = db.get(User, user_id)
     tenant = db.get(Tenant, tenant_id)
     if user is None or not user.is_active or tenant is None or not tenant.is_active:
+        raise _EXPIRED
+    if not passwords.token_still_valid(user, token_pwv):
         raise _EXPIRED
     method = mfa.verify(db, user.id, body.code)
     if method is None:

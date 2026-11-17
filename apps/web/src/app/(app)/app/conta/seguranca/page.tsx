@@ -1,6 +1,9 @@
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import { EnableMfa, ManageMfa } from "@/components/account/mfa-manager";
+import { ActionForm, Field } from "@/components/ui/action-form";
+import { Input } from "@/components/ui/primitives";
+import { changePasswordAction } from "@/lib/actions-senha";
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/primitives";
 import { dateTime } from "@/lib/format";
 import { api, getMe } from "@/lib/session";
@@ -72,6 +75,54 @@ export default async function SegurancaPage() {
               <EnableMfa />
             </>
           )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Trocar senha</CardTitle>
+            <CardDescription>
+              As sessões abertas em outros aparelhos são encerradas; esta continua.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ActionForm
+            action={changePasswordAction}
+            submitLabel="Trocar senha"
+            resetOnSuccess
+            className="max-w-md"
+          >
+            <Field label="Senha atual" htmlFor="current_password">
+              <Input
+                id="current_password"
+                name="current_password"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+            <Field label="Senha nova (mín. 12 caracteres)" htmlFor="pw-new">
+              <Input
+                id="pw-new"
+                name="new_password"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+            </Field>
+            <Field label="Repita a senha nova" htmlFor="pw-confirm">
+              <Input
+                id="pw-confirm"
+                name="confirm"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+            </Field>
+          </ActionForm>
         </CardContent>
       </Card>
     </div>

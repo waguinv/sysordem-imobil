@@ -60,6 +60,8 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(160), nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Tokens de acesso emitidos antes disto não valem (troca/redefinição de senha encerra as sessões)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -928,5 +930,21 @@ class UserMfaRecoveryCode(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+
+
+class PasswordToken(Base):
+    """Link de uso único para redefinir a senha ou aceitar convite (só o SHA-256 do token)."""
+
+    __tablename__ = "password_tokens"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(20), nullable=False)  # redefinir | convite
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    # empresa do convite/pedido (só referência; tabela global, como `users`)
+    origin_tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()

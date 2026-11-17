@@ -65,7 +65,8 @@ def get_auth(
         user_id = uuid.UUID(claims["sub"])
         tenant_id = uuid.UUID(claims["tid"])
         membership_id = uuid.UUID(claims["mid"])
-    except (jwt.PyJWTError, ValueError, KeyError):
+        token_pwv = int(claims.get("pwv", 0))
+    except (jwt.PyJWTError, ValueError, KeyError, TypeError):
         raise _UNAUTHORIZED from None
 
     set_tenant(db, tenant_id)
@@ -79,6 +80,10 @@ def get_auth(
     )
     tenant = db.get(Tenant, tenant_id)
     if membership is None or tenant is None or not tenant.is_active or not membership.user.is_active:
+        raise _UNAUTHORIZED
+    from app.services.passwords import token_still_valid  # import local: evita ciclo
+
+    if not token_still_valid(membership.user, token_pwv):  # senha trocada depois deste login
         raise _UNAUTHORIZED
     return AuthContext(user=membership.user, tenant=tenant, membership=membership, db=db)
 

@@ -115,10 +115,28 @@ Revisão consolidada, riscos em aberto e o que falta da revisão profissional: [
   empresa poderia tirar a proteção do dono de outra. Quem perder o celular **e** os códigos precisa do suporte
   (decisão 42).
 
+## Senha: troca, redefinição por e-mail e convite
+- **Trocar** (logado, em Segurança da conta): exige a senha atual e devolve uma sessão nova.
+- **Redefinir** ("Esqueci minha senha"): a resposta é sempre a mesma, exista ou não a conta, para não revelar
+  e-mails cadastrados. O link vale **30 min** e uma vez. Há limite de 3 pedidos por e-mail e 100 no total por hora
+  (em memória do processo).
+- **Convite**: ao adicionar uma pessoa nova sem senha inicial, ela recebe um link para criar a própria senha (vale
+  **7 dias** e uma vez). Quem já usa o sistema em outra empresa só recebe o aviso do novo acesso. Sem e-mail
+  configurado, a senha inicial continua obrigatória.
+- Links: token aleatório de 256 bits. No banco (`password_tokens`) só fica o **SHA-256** do token. Pedir outro link
+  invalida o anterior do mesmo tipo. O papel da aplicação não apaga nem altera os tokens, só marca o uso.
+- **Trocar ou redefinir a senha encerra as sessões abertas.** Cada token carrega a versão da senha (`pwv`, o instante
+  da última troca em microssegundos), e o token só vale se a versão bater: comparação exata, sem depender do horário.
+  Vale também para o desafio pendente do MFA. A verificação em duas etapas **continua valendo** depois da redefinição.
+- Regras da senha nova: pelo menos 12 caracteres, diferente do e-mail, recusa senhas óbvias e repetições.
+- E-mail: SMTP com STARTTLS (587) ou SSL (465), enviado **depois** da resposta (BackgroundTasks). Uma falha vai só para
+  o log, sem o conteúdo. Configuração: `SMTP_*` (as mesmas do Documenso) e `PUBLIC_WEB_URL` (endereço do sistema,
+  para os links). Sem elas, o envio fica desligado e as telas avisam.
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`. MFA: feito (opcional; tornar obrigatório é a decisão 43).
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.
-- Convite de usuário por e-mail (hoje a senha inicial é definida por quem cria o vínculo) e redefinição de senha.
+- Convite e redefinição de senha por e-mail: feitos (ver acima). Falta configurar SMTP e `PUBLIC_WEB_URL` em produção.
 - Limite por IP no formulário do site (exige proxy confiável repassando o IP do visitante ao web).
 - Onboarding de empresas (hoje via seed/SQL administrativo).
 - Monitoramento e alertas (métricas, erro 5xx, fila de webhooks, backup que falhou).
