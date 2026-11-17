@@ -95,8 +95,28 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 
 Revisão consolidada, riscos em aberto e o que falta da revisão profissional: [REVISAO_SEGURANCA.md](REVISAO_SEGURANCA.md).
 
+## Verificação em duas etapas (TOTP)
+- Opcional por usuário e **recomendada** (aviso no topo e destaque na tela) para proprietário, administrador e
+  financeiro. Em Equipe e acessos aparece quem entra "só com senha". Vale em todas as empresas do usuário.
+- Aplicativo autenticador padrão (RFC 6238: HMAC-SHA1, 30 s, 6 dígitos, tolerância de ±1 intervalo). O cálculo é feito
+  só com a biblioteca padrão (`app/core/totp.py`, testado com os vetores da RFC).
+- **Segredo cifrado** no banco (`user_mfa`) com o cofre de credenciais (AES-256-GCM, chave `PAYMENTS_CREDENTIALS_KEY`,
+  finalidade "mfa-totp" amarrada ao id do usuário). Sem a chave no servidor, a ativação fica indisponível.
+- Login em duas etapas: com MFA ligado, a senha certa devolve só um **desafio** (JWT de 5 min com `aud` próprio e sem
+  `mid`, que não serve como token de acesso). O token de acesso só sai em `POST /auth/mfa/login` com o código.
+  O mesmo código não vale duas vezes (`last_step`, com trava da linha). Há limite de 5 erros em 15 min por usuário,
+  separado do limite da senha.
+- **10 códigos de recuperação** de uso único, guardados só como hash Argon2id e mostrados uma vez. Gerar novos invalida
+  os anteriores.
+- Ativar exige a senha atual, para que uma sessão roubada não ative um MFA do atacante e tranque o dono fora. Desligar
+  e gerar novos códigos exigem senha **e** código. Tudo auditado: `auth.mfa_enable`, `auth.mfa_disable`,
+  `auth.mfa_recovery_codes` e `auth.login` com o método usado.
+- Não existe "desligar o MFA de outro membro": como o MFA vale em todas as empresas do usuário, o administrador de uma
+  empresa poderia tirar a proteção do dono de outra. Quem perder o celular **e** os códigos precisa do suporte
+  (decisão 42).
+
 ## Pendências conhecidas (antes de produção)
-- Refresh token/rotação e revogação por `jti`; MFA para perfis críticos.
+- Refresh token/rotação e revogação por `jti`. MFA: feito (opcional; tornar obrigatório é a decisão 43).
 - Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.
 - Convite de usuário por e-mail (hoje a senha inicial é definida por quem cria o vínculo) e redefinição de senha.
 - Limite por IP no formulário do site (exige proxy confiável repassando o IP do visitante ao web).

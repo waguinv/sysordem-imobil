@@ -15,6 +15,9 @@ export type Me = {
   role_label: string;
   permissions: string[];
   tenant: { id: string; slug: string; name: string };
+  mfa_enabled: boolean;
+  /** perfis críticos (proprietário, administrador, financeiro) */
+  mfa_recommended: boolean;
 };
 
 export class ApiError extends Error {

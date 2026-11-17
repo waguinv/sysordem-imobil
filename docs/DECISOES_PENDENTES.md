@@ -40,3 +40,5 @@
 39. Emissão de nota fiscal de serviço da assinatura e e-mail de cobrança/recibo (provedor de e-mail — decisão 10).
 40. Termos de uso e política de privacidade: textos jurídicos a redigir (hoje só o aceite é registrado).
 41. Estorno **parcial** no PSP (Asaas): hoje a cobrança fica sinalizada e o financeiro estorna o recebimento e registra o valor que ficou. Fazer isso sozinho? E se a parcela já foi renegociada, como tratar o estorno?
+42. Verificação em duas etapas: quem perder o celular **e** os códigos de recuperação hoje depende do suporte (desligar o MFA direto no banco, com conferência de identidade). Qual o procedimento e quem pode fazer?
+43. Tornar a verificação em duas etapas **obrigatória** para proprietário/administrador/financeiro (hoje é recomendada, com aviso)? A partir de quando, e com que prazo para os usuários atuais ativarem?

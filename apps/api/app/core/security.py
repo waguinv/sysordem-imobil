@@ -84,3 +84,38 @@ def decode_portal_token(token: str) -> dict[str, Any]:
         audience=PORTAL_AUDIENCE,
         options={"require": ["exp", "iat", "sub", "tid", "cid", "iss", "aud"]},
     )
+
+
+# ───────────────────────── verificação em duas etapas: desafio do login ─────────────────────────
+
+MFA_AUDIENCE = "login-mfa"
+MFA_TOKEN_MINUTES = 5
+
+
+def create_mfa_token(*, user_id: uuid.UUID, tenant_id: uuid.UUID) -> str:
+    """Prova de que a SENHA foi conferida; só serve para informar o código (não é token de acesso:
+    tem `aud` e não tem `mid`, então `decode_access_token` recusa)."""
+    s = get_settings()
+    now = datetime.now(UTC)
+    payload = {
+        "iss": s.jwt_issuer,
+        "aud": MFA_AUDIENCE,
+        "sub": str(user_id),
+        "tid": str(tenant_id),
+        "iat": now,
+        "exp": now + timedelta(minutes=MFA_TOKEN_MINUTES),
+        "jti": uuid.uuid4().hex,
+    }
+    return jwt.encode(payload, s.jwt_secret, algorithm=s.jwt_algorithm)
+
+
+def decode_mfa_token(token: str) -> dict[str, Any]:
+    s = get_settings()
+    return jwt.decode(
+        token,
+        s.jwt_secret,
+        algorithms=[s.jwt_algorithm],
+        issuer=s.jwt_issuer,
+        audience=MFA_AUDIENCE,
+        options={"require": ["exp", "iat", "sub", "tid", "iss", "aud"]},
+    )

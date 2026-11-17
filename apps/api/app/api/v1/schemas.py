@@ -23,6 +23,21 @@ class TokenOut(BaseModel):
     expires_in: int
 
 
+class LoginOut(BaseModel):
+    """Login: token de acesso OU (com verificação em duas etapas) o desafio para informar o código."""
+
+    access_token: str | None = None
+    token_type: str = "bearer"  # noqa: S105
+    expires_in: int
+    mfa_required: bool = False
+    mfa_token: str | None = None
+
+
+class MfaLoginIn(BaseModel):
+    mfa_token: str = Field(min_length=10, max_length=2000)
+    code: str = Field(min_length=6, max_length=20)  # 6 dígitos do aplicativo ou código de recuperação
+
+
 class TenantOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -38,6 +53,8 @@ class MeOut(BaseModel):
     role: str
     role_label: str
     permissions: list[str]
+    mfa_enabled: bool = False
+    mfa_recommended: bool = False  # perfis críticos (proprietário, administrador, financeiro)
     tenant: TenantOut
 
 
@@ -49,6 +66,7 @@ class MemberOut(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
+    mfa_enabled: bool = False
 
 
 class MemberCreateIn(BaseModel):

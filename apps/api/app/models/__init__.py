@@ -900,3 +900,33 @@ class PaymentAccount(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+# ───────────────────────── Verificação em duas etapas (TOTP) ─────────────────────────
+
+
+class UserMfa(Base):
+    """MFA do usuário (global, como `users`). Segredo cifrado; `last_step` impede reusar código."""
+
+    __tablename__ = "user_mfa"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+    secret_sealed: Mapped[str | None] = mapped_column(Text)
+    pending_secret_sealed: Mapped[str | None] = mapped_column(Text)
+    enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_step: Mapped[int | None] = mapped_column(BigInteger)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class UserMfaRecoveryCode(Base):
+    """Código de recuperação de uso único (só o hash)."""
+
+    __tablename__ = "user_mfa_recovery_codes"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()

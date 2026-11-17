@@ -4,7 +4,14 @@ import { api, ApiError, getMe } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Equipe e acessos" };
 
-type Member = { id: string; email: string; full_name: string; role: string; is_active: boolean };
+type Member = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  is_active: boolean;
+  mfa_enabled: boolean;
+};
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Proprietário",
@@ -51,6 +58,11 @@ export default async function EquipePage() {
                   <div className="flex items-center gap-2">
                     <Badge>{ROLE_LABEL[m.role] ?? m.role}</Badge>
                     {!m.is_active && <Badge variant="muted">Inativo</Badge>}
+                    {m.is_active && (
+                      <Badge variant={m.mfa_enabled ? "outline" : "muted"}>
+                        {m.mfa_enabled ? "2 etapas" : "Só senha"}
+                      </Badge>
+                    )}
                   </div>
                 </li>
               ))}

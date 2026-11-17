@@ -15,12 +15,16 @@ from app.auth.deps import AuthContext, get_auth, require
 from app.auth.rbac import ROLE_LABEL, Perm, Role, can_assign, permissions_for
 from app.core.security import hash_password
 from app.models import AuditEvent, Membership, User
-from app.services import audit
+from app.services import audit, mfa
 
 router = APIRouter(tags=["tenant"])
 
 
-def _member_out(m: Membership) -> MemberOut:
+# Perfis em que a verificação em duas etapas é recomendada (acesso a dinheiro e à equipe)
+MFA_RECOMMENDED = {Role.OWNER, Role.ADMIN, Role.FINANCEIRO}
+
+
+def _member_out(m: Membership, mfa_on: bool = False) -> MemberOut:
     return MemberOut(
         id=m.id,
         user_id=m.user_id,
@@ -29,6 +33,7 @@ def _member_out(m: Membership) -> MemberOut:
         role=m.role,
         is_active=m.is_active,
         created_at=m.created_at,
+        mfa_enabled=mfa_on,
     )
 
 
@@ -42,6 +47,8 @@ def me(ctx: AuthContext = Depends(get_auth)) -> MeOut:
         role_label=ROLE_LABEL.get(Role(ctx.role), ctx.role),
         permissions=permissions_for(ctx.role),
         tenant=TenantOut.model_validate(ctx.tenant),
+        mfa_enabled=mfa.is_enabled(ctx.db, ctx.user.id),
+        mfa_recommended=ctx.role in MFA_RECOMMENDED,
     )
 
 
@@ -56,7 +63,8 @@ def list_members(ctx: AuthContext = Depends(require(Perm.MEMBERS_VIEW))) -> list
     rows = ctx.db.scalars(
         select(Membership).where(Membership.tenant_id == ctx.tenant_id).order_by(Membership.created_at)
     ).all()
-    return [_member_out(m) for m in rows]
+    on = mfa.enabled_users(ctx.db, [m.user_id for m in rows])
+    return [_member_out(m, m.user_id in on) for m in rows]
 
 
 def _plan_users(ctx: AuthContext) -> None:

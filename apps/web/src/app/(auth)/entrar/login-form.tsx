@@ -7,6 +7,40 @@ import { loginAction, type LoginState } from "@/lib/actions";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
+  if (state.mfaToken) {
+    return (
+      <form action={action} className="space-y-4" noValidate>
+        <input type="hidden" name="mfa_token" value={state.mfaToken} />
+        <div className="space-y-1">
+          <p className="font-semibold">Verificação em duas etapas</p>
+          <p className="text-muted-foreground text-sm">
+            Abra o aplicativo autenticador e digite o código de 6 dígitos. Sem o celular, use um código de
+            recuperação.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="code">Código</Label>
+          <Input
+            id="code"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+            maxLength={20}
+            required
+          />
+        </div>
+        {state.error && (
+          <p role="alert" className="text-destructive text-sm">
+            {state.error}
+          </p>
+        )}
+        <Button type="submit" className="w-full" size="lg" disabled={pending}>
+          {pending && <Loader2 className="animate-spin" />} Confirmar
+        </Button>
+      </form>
+    );
+  }
   return (
     <form action={action} className="space-y-4" noValidate>
       <div className="space-y-2">
