@@ -173,6 +173,17 @@ jobs:
           if deploy/offsite_backup.sh; then echo "aceitou cópia adulterada no destino!"; exit 1; fi
           if deploy/backup.sh; then echo "backup não acusou a falha da cópia externa!"; exit 1; fi
           grep -q 'GET /hc/fail ' "$RUNNER_TEMP/monitor.log" || { echo "monitor não recebeu a falha"; exit 1; }
+      - name: Monitor do servidor (API, /ops/status, disco, backups) e aviso ao serviço de alertas
+        run: |
+          python3 -m http.server 8766 --bind 127.0.0.1 --directory "$RUNNER_TEMP" > "$RUNNER_TEMP/alertas.log" 2>&1 &
+          sleep 1
+          echo "MONITOR_HEALTHCHECK_URL=http://127.0.0.1:8766/mon" >> .env
+          # tudo bem: API pronta, /ops/status com o token do .env, backup recente, cópia externa conferida
+          deploy/monitor.sh
+          grep -q 'POST /mon ' "$RUNNER_TEMP/alertas.log" || { echo "monitor não avisou o sucesso"; exit 1; }
+          # problema (limite de disco impossível): sai com erro e avisa a falha
+          if MONITOR_DISK_MAX_PCT=1 deploy/monitor.sh; then echo "monitor não acusou o disco"; exit 1; fi
+          grep -q 'POST /mon/fail ' "$RUNNER_TEMP/alertas.log" || { echo "monitor não avisou a falha"; exit 1; }
       - if: always()
         run: docker compose logs --tail=100 api
       - if: always()

@@ -92,6 +92,12 @@ class Settings(BaseSettings):
     # Fase 6a: camada HTTP
     max_body_bytes: int = 5 * 1024 * 1024  # extrato OFX/CSV de até 2 MB em JSON cabe com folga
     webhook_rate_per_minute: int = 600  # por IP de origem, nas rotas /api/v1/webhooks/*
+
+    # Monitoramento: rota interna /ops/status (fora do nginx; o deploy/monitor.sh chama pela porta local).
+    # Sem OPS_TOKEN a rota não existe (404).
+    ops_token: str | None = Field(default=None, min_length=24)
+    ops_max_errors_15m: int = 10  # respostas 5xx em 15 min a partir das quais a API está "degradada"
+    ops_db_slow_ms: float = 1000.0
     log_format: str | None = None  # "json" | "text"; padrão: json em produção/staging
     log_level: str = "INFO"
     db_connect_timeout_seconds: int = 5
@@ -124,6 +130,15 @@ class Settings(BaseSettings):
             return None  # vazio = assinatura eletrônica real não configurada
         if str(v).upper().startswith("CHANGE_ME"):
             raise ValueError("Configuração do Documenso ainda está com o valor de exemplo")
+        return str(v).strip()
+
+    @field_validator("ops_token", mode="before")
+    @classmethod
+    def _blank_ops(cls, v: str | None) -> str | None:
+        if v is None or not str(v).strip():
+            return None
+        if str(v).upper().startswith("CHANGE_ME"):
+            raise ValueError("OPS_TOKEN ainda está com o valor de exemplo")
         return str(v).strip()
 
     @field_validator(

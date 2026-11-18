@@ -15,6 +15,8 @@ from collections.abc import Awaitable, Callable, MutableMapping
 from contextvars import ContextVar
 from typing import Any
 
+from app.core import metrics
+
 Scope = MutableMapping[str, Any]
 Message = MutableMapping[str, Any]
 Receive = Callable[[], Awaitable[Message]]
@@ -163,6 +165,8 @@ class SecurityMiddleware:
             if too_large and status_holder["started"] and status_holder["status"] != 413:
                 access_log.warning("corpo excedeu o limite após o início da resposta")
         finally:
+            elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+            metrics.record(status_holder["status"], elapsed_ms)  # saúde da API (/ops/status)
             access_log.info(
                 "request",
                 extra={
@@ -171,7 +175,7 @@ class SecurityMiddleware:
                         # só o caminho: a query string pode ter e-mail/CPF
                         "path": path,
                         "status": status_holder["status"],
-                        "duration_ms": round((time.perf_counter() - start) * 1000, 1),
+                        "duration_ms": elapsed_ms,
                     }
                 },
             )

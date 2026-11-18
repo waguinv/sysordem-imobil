@@ -182,3 +182,34 @@ cópia adulterada recusada e avisos de sucesso e falha.
 `deploy/restore.sh <arquivo>` restaura num banco novo `imobil_restore_<data>` e confere revisão e empresas.
 A restauração é testada a cada PR no job `drill` do CI (backup → restore → conferência linha a linha e do RLS com
 `scripts/verify_restore.py`) — ver [REVISAO_SEGURANCA.md](REVISAO_SEGURANCA.md).
+
+## Monitoramento e alertas
+Duas camadas:
+- **API: `/ops/status`.** Rota interna, **fora do nginx** (o nginx só expõe os webhooks e o `/health`) e protegida por
+  `OPS_TOKEN` (cabeçalho `X-Ops-Token`; sem o token configurado, ou com token errado, responde 404). Responde **503**
+  e lista os problemas quando há erros 5xx demais nos últimos 15 min (`OPS_MAX_ERRORS_15M`, padrão 10), quando o
+  banco está lento ou fora (`OPS_DB_SLOW_MS`, padrão 1000) ou quando as migrations do banco são diferentes das do
+  código. Também informa versão, uptime e as contagens de requisições, 5xx e respostas lentas da janela.
+- **Servidor: `deploy/monitor.sh`** (cron a cada 5 min). Confere `/ready` e `/ops/status` pela porta local, o site
+  (`/entrar`), o uso do disco (`MONITOR_DISK_MAX_PCT`, padrão 85%), a idade do último backup e, com cópia externa
+  ligada, da última conferência lá fora (`MONITOR_BACKUP_MAX_HOURS`, padrão 26 h). O resultado vai para
+  `MONITOR_HEALTHCHECK_URL` (healthchecks.io): `<url>` no sucesso ou `<url>/fail` com o relatório no corpo.
+  O healthchecks.io alerta **na falha e quando o aviso para de chegar**, o que pega o servidor fora do ar e o cron
+  parado. O alerta só sai na mudança de estado, sem spam a cada 5 min.
+
+O CI (`drill`) roda o `monitor.sh` contra a pilha real (API com `OPS_TOKEN`, backup recente, cópia externa conferida)
+e confere os avisos de sucesso e de falha.
+
+**Configuração no servidor** (uma vez, em produção e staging):
+1. No healthchecks.io (plano grátis), crie um check por ambiente com período **5 min** e tolerância **10 min**, e ligue
+   as notificações: e-mail e, se quiser, WhatsApp ou Telegram. Copie a URL de ping.
+2. No `.env` do ambiente: `OPS_TOKEN=` com um valor aleatório (`python -c "import secrets;
+   print(secrets.token_urlsafe(32))"`) e `MONITOR_HEALTHCHECK_URL=` com a URL do passo 1. Depois, `deploy/deploy.sh` com
+   a tag atual (ou `docker compose ... up -d api`), para a API receber o `OPS_TOKEN`.
+3. Teste: `deploy/monitor.sh` na pasta do ambiente. Ele imprime o relatório e o check fica verde no painel.
+4. Crontab do `deploy`:
+   ```
+   */5 * * * * cd /opt/sysordem-imobil && deploy/monitor.sh > /dev/null 2>&1
+   */5 * * * * cd /opt/sysordem-imobil-staging && deploy/monitor.sh > /dev/null 2>&1
+   ```
+
