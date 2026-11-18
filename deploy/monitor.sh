@@ -19,8 +19,9 @@
 #   MONITOR_DISK_MAX_PCT      uso máximo do disco em % (padrão 85)
 #   MONITOR_BACKUP_MAX_HOURS  idade máxima do último backup (padrão 26)
 #   BACKUP_DIR, BACKUP_RCLONE_REMOTE (os mesmos do backup.sh)
+# sem -e de propósito: cada checagem que falha entra no relatório, em vez de parar o script
 set -Euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 if [ -f .env ]; then
   # sem -u ao carregar: um valor com "$" sem aspas no .env não pode derrubar o monitor
