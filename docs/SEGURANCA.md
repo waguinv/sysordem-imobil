@@ -139,4 +139,4 @@ Revisão consolidada, riscos em aberto e o que falta da revisão profissional: [
 - Convite e redefinição de senha por e-mail: feitos (ver acima). Falta configurar SMTP e `PUBLIC_WEB_URL` em produção.
 - Limite por IP no formulário do site (exige proxy confiável repassando o IP do visitante ao web).
 - Onboarding de empresas (hoje via seed/SQL administrativo).
-- Monitoramento e alertas (métricas, erro 5xx, fila de webhooks, backup que falhou).
+- Monitoramento e alertas: feito (`/ops/status` + `deploy/monitor.sh` + healthchecks.io, ver CI_CD.md). Falta configurar no servidor e, depois, métricas de negócio (avisos do Asaas parados, cobranças divergentes).

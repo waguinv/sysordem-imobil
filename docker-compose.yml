@@ -47,6 +47,8 @@ services:
       PAYMENTS_SANDBOX_SECRET: ${PAYMENTS_SANDBOX_SECRET:-}
       PAYMENTS_CREDENTIALS_KEY: ${PAYMENTS_CREDENTIALS_KEY:-}
       PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+      # Monitoramento: token da rota interna /ops/status (deploy/monitor.sh)
+      OPS_TOKEN: ${OPS_TOKEN:-}
       # E-mail da API (redefinir senha, convite) — mesmas SMTP_* do Documenso
       PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-}
       SMTP_HOST: ${SMTP_HOST:-}
