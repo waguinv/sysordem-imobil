@@ -1,5 +1,6 @@
 "use server";
 
+import { clientIpHeaders } from "@/lib/client-ip";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { API_URL, SESSION_COOKIE } from "@/lib/session";
@@ -33,7 +34,7 @@ async function mfaStep(prev: LoginState, form: FormData): Promise<LoginState> {
   try {
     res = await fetch(`${API_URL}/api/v1/auth/mfa/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
       body: JSON.stringify({ mfa_token: mfaToken, code }),
       cache: "no-store",
     });
@@ -64,7 +65,7 @@ export async function loginAction(prev: LoginState, form: FormData): Promise<Log
   try {
     res = await fetch(`${API_URL}/api/v1/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
       body: JSON.stringify({ tenant_slug: tenant, email, password }),
       cache: "no-store",
     });

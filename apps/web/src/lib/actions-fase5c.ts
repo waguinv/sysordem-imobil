@@ -1,5 +1,6 @@
 "use server";
 
+import { clientIpHeaders } from "@/lib/client-ip";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -40,7 +41,7 @@ export async function signupAction(_p: SignupState, f: FormData): Promise<Signup
   try {
     res = await fetch(`${API_URL}/api/v1/signup`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
       body: JSON.stringify({
         ...values,
         password,

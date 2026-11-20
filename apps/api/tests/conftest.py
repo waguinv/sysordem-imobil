@@ -115,6 +115,9 @@ def world(owner_engine) -> World:
     from app.services import passwords as passwords_svc
 
     passwords_svc.reset_throttle()
+    from app.services import ip_throttle
+
+    ip_throttle.reset()
     from app.services import site as site_svc
 
     site_svc.reset_throttle()

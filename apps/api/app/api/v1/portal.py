@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.auth.deps import AuthContext, require
 from app.auth.rbac import Perm
 from app.auth.scope import check_customer, scope_for
+from app.core.client_ip import client_ip
 from app.core.db import DB_DEPENDS, set_tenant
 from app.core.security import decode_portal_token
 from app.models import (
@@ -40,7 +41,7 @@ from app.models import (
     SalesContract,
     Tenant,
 )
-from app.services import audit
+from app.services import audit, ip_throttle
 from app.services import charges as charge_svc
 from app.services import portal as svc
 from app.services.receivables import quote_installment, today
@@ -127,7 +128,13 @@ def _token_out(token: str) -> PortalTokenOut:
 
 
 @router.post("/portal/auth/login", response_model=PortalTokenOut)
-def portal_login(body: PortalLoginIn, db: Session = DB_DEPENDS) -> PortalTokenOut:
+def portal_login(
+    body: PortalLoginIn, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)
+) -> PortalTokenOut:
+    if ip_throttle.blocked("login", ip):
+        raise HTTPException(
+            status_code=429, detail="Muitas tentativas a partir deste endereço. Aguarde alguns minutos."
+        )
     tenant = svc.active_tenant(db, body.tenant_slug)
     if tenant is not None:
         set_tenant(db, tenant.id)
@@ -138,19 +145,28 @@ def portal_login(body: PortalLoginIn, db: Session = DB_DEPENDS) -> PortalTokenOu
     except svc.PortalError as e:
         raise HTTPException(status_code=429, detail=str(e)) from None
     if token is None:
+        ip_throttle.hit("login", ip)
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos")
     return _token_out(token)
 
 
 @router.post("/portal/auth/activate", response_model=PortalTokenOut)
-def portal_activate(body: ActivateIn, db: Session = DB_DEPENDS) -> PortalTokenOut:
+def portal_activate(
+    body: ActivateIn, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)
+) -> PortalTokenOut:
+    if ip_throttle.blocked("login", ip):
+        raise HTTPException(
+            status_code=429, detail="Muitas tentativas a partir deste endereço. Aguarde alguns minutos."
+        )
     tenant = svc.active_tenant(db, body.tenant_slug)
     if tenant is None:
+        ip_throttle.hit("login", ip)
         raise HTTPException(status_code=409, detail="Convite inválido ou expirado. Peça um novo à empresa.")
     set_tenant(db, tenant.id)
     try:
         token = svc.activate(db, tenant=tenant, token=body.token, password=body.password)
     except svc.PortalError as e:
+        ip_throttle.hit("login", ip)
         raise HTTPException(status_code=409, detail=str(e)) from None
     return _token_out(token)
 

@@ -52,7 +52,7 @@ Perfis por vínculo: `owner`, `admin`, `financeiro`, `comercial`, `corretor`, `l
 
 ## Site público (Fase 5a)
 - Rotas `/api/v1/public/...` não exigem token. A empresa vem do `slug` da URL; o contexto RLS só é definido depois de confirmar empresa ativa **e** site publicado. Tudo o que sai passa por DTOs públicos de lista fechada.
-- O formulário de contato grava lead com consentimento LGPD; tem campo-isca e limite por empresa/contato. Como o web chama a API pelo servidor (BFF), a API não vê o IP do visitante: o limite por IP fica para quando houver proxy confiável repassando `X-Forwarded-For` (ou Redis + limite no próprio web).
+- O formulário de contato grava lead com consentimento LGPD; tem campo-isca, limite por empresa/contato e, com o IP assinado (ver "Limites por IP"), limite por IP.
 
 ## Portal do comprador (Fase 5b)
 - Identidade separada da equipe: `portal_accounts` (por empresa) e JWT com `aud=portal-comprador` + `cid`; o decodificador da equipe rejeita tokens com `aud`, e o do portal exige `aud` — testado nos dois sentidos. Cada requisição revalida empresa ativa, acesso ativo e ativado e o comprador.
@@ -133,10 +133,25 @@ Revisão consolidada, riscos em aberto e o que falta da revisão profissional: [
   o log, sem o conteúdo. Configuração: `SMTP_*` (as mesmas do Documenso) e `PUBLIC_WEB_URL` (endereço do sistema,
   para os links). Sem elas, o envio fica desligado e as telas avisam.
 
+## Limites por IP do visitante
+- A API só recebe login, senha, cadastro e contato **pelo servidor do web**, porque o nginx não expõe essas rotas.
+  Para a API, todo visitante chegaria do mesmo endereço. Por isso, o web lê o `X-Real-IP` gravado pelo nginx (com o
+  IP real, sobrescrevendo o que o visitante mandar) e o repassa em `X-Client-IP` com
+  `X-Client-IP-Sig` = HMAC-SHA256(`CLIENT_IP_SECRET`, ip).
+- A API só usa o IP com assinatura válida (`app/core/client_ip.py`). Sem `CLIENT_IP_SECRET`, ou sem a assinatura
+  (desenvolvimento sem nginx), os limites por IP ficam **desligados**, para não juntar todos os visitantes num limite
+  só. Os limites por e-mail, por usuário e por empresa continuam valendo. IPv6 conta pelo bloco /64.
+- Limites (`app/services/ip_throttle.py`, em memória do processo):
+  - **erros de login:** 20 em 15 min, somando painel, código do MFA, portal do comprador e links de senha/convite
+    inválidos. Login certo não zera, senão o atacante intercalaria um login próprio para limpar os erros;
+  - **"esqueci minha senha":** 10 por hora, em silêncio (a resposta continua igual);
+  - **cadastro de empresa:** 5 por hora;
+  - **formulário de contato do site:** 10 por hora.
+  Ajustáveis por `IP_LOGIN_FAILURES`, `IP_FORGOT_PER_HOUR`, `IP_SIGNUP_PER_HOUR` e `IP_LEADS_PER_HOUR`.
+
 ## Pendências conhecidas (antes de produção)
 - Refresh token/rotação e revogação por `jti`. MFA: feito (opcional; tornar obrigatório é a decisão 43).
-- Rate limit compartilhado (Redis) e também por IP; proteção contra abuso no login.
+- Limites por IP: feitos (ver acima), em memória do processo. Com várias réplicas da API, mover para Redis.
 - Convite e redefinição de senha por e-mail: feitos (ver acima). Falta configurar SMTP e `PUBLIC_WEB_URL` em produção.
-- Limite por IP no formulário do site (exige proxy confiável repassando o IP do visitante ao web).
 - Onboarding de empresas (hoje via seed/SQL administrativo).
 - Monitoramento e alertas: feito (`/ops/status` + `deploy/monitor.sh` + healthchecks.io, ver CI_CD.md). Falta configurar no servidor e, depois, métricas de negócio (avisos do Asaas parados, cobranças divergentes).
