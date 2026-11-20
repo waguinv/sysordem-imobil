@@ -93,6 +93,13 @@ class Settings(BaseSettings):
     max_body_bytes: int = 5 * 1024 * 1024  # extrato OFX/CSV de até 2 MB em JSON cabe com folga
     webhook_rate_per_minute: int = 600  # por IP de origem, nas rotas /api/v1/webhooks/*
 
+    # Limites por IP do visitante (o web repassa o IP assinado com CLIENT_IP_SECRET); sem segredo, desligados.
+    client_ip_secret: str | None = Field(default=None, min_length=32)
+    ip_login_failures: int = 20  # erros de login (painel, MFA, portal, links) por IP em 15 min
+    ip_forgot_per_hour: int = 10
+    ip_signup_per_hour: int = 5
+    ip_leads_per_hour: int = 10
+
     # Monitoramento: rota interna /ops/status (fora do nginx; o deploy/monitor.sh chama pela porta local).
     # Sem OPS_TOKEN a rota não existe (404).
     ops_token: str | None = Field(default=None, min_length=24)
@@ -132,13 +139,13 @@ class Settings(BaseSettings):
             raise ValueError("Configuração do Documenso ainda está com o valor de exemplo")
         return str(v).strip()
 
-    @field_validator("ops_token", mode="before")
+    @field_validator("ops_token", "client_ip_secret", mode="before")
     @classmethod
     def _blank_ops(cls, v: str | None) -> str | None:
         if v is None or not str(v).strip():
             return None
         if str(v).upper().startswith("CHANGE_ME"):
-            raise ValueError("OPS_TOKEN ainda está com o valor de exemplo")
+            raise ValueError("OPS_TOKEN/CLIENT_IP_SECRET ainda está com o valor de exemplo")
         return str(v).strip()
 
     @field_validator(

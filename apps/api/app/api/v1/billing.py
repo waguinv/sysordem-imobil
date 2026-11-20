@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import AuthContext, require
 from app.auth.rbac import Perm
+from app.core.client_ip import client_ip
 from app.core.config import get_settings
 from app.core.db import DB_DEPENDS, set_tenant
 from app.core.security import create_access_token, hash_password
@@ -34,7 +35,7 @@ from app.models import (
     Tenant,
     User,
 )
-from app.services import audit
+from app.services import audit, ip_throttle
 from app.services import subscription as svc
 from app.services.finance import money
 from app.services.psp.base import EVENT_PAID, InvalidSignatureError, ProviderError
@@ -134,8 +135,12 @@ class SignupOut(BaseModel):
 
 
 @router.post("/signup", response_model=SignupOut, status_code=201)
-def signup(body: SignupIn, db: Session = DB_DEPENDS) -> SignupOut:
+def signup(body: SignupIn, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)) -> SignupOut:
     """Cria empresa + proprietário + assinatura em teste. Sem token: é a porta de entrada do SaaS."""
+    if not ip_throttle.take("cadastro", ip):
+        raise HTTPException(
+            status_code=429, detail="Muitos cadastros a partir deste endereço. Tente de novo mais tarde."
+        )
     if body.website:
         raise HTTPException(status_code=400, detail="Não foi possível concluir o cadastro")
     if not body.accept_terms:

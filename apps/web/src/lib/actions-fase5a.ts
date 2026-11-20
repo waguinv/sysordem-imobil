@@ -1,5 +1,6 @@
 "use server";
 
+import { clientIpHeaders } from "@/lib/client-ip";
 import { revalidatePath } from "next/cache";
 import type { FormState } from "@/lib/actions-fase1";
 import { api, API_URL, ApiError } from "@/lib/session";
@@ -79,7 +80,7 @@ export async function submitLeadAction(slug: string, _p: FormState, f: FormData)
   const res = await fetch(`${API_URL}/api/v1/public/sites/${encodeURIComponent(slug)}/leads`, {
     method: "POST",
     cache: "no-store",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
     body: JSON.stringify(body),
   });
   if (res.status === 202) return { ok: "Recebemos seu contato. Em breve falaremos com você!" };

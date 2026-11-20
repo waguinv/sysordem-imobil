@@ -17,8 +17,10 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import AuthContext, require
 from app.auth.rbac import Perm
+from app.core.client_ip import client_ip
 from app.core.db import DB_DEPENDS
 from app.models import Development, Lot
+from app.services import ip_throttle
 from app.services import site as svc
 
 router = APIRouter(tags=["site"])
@@ -284,13 +286,19 @@ def public_development(
 
 
 @public.post("/leads", response_model=PublicLeadOut, status_code=202)
-def public_lead(slug: str, body: PublicLeadIn, db: Session = DB_DEPENDS) -> PublicLeadOut:
+def public_lead(
+    slug: str, body: PublicLeadIn, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)
+) -> PublicLeadOut:
     try:
         tenant, s = svc.resolve(db, slug)
     except svc.SiteError as e:
         raise _business(e) from None
     if body.website:  # robô preencheu o campo-isca: finge que recebeu e não grava nada
         return PublicLeadOut()
+    if not ip_throttle.take("contato", ip):
+        raise HTTPException(
+            status_code=429, detail="Muitos envios. Tente de novo mais tarde ou fale por telefone."
+        )
     try:
         svc.submit_lead(
             db,

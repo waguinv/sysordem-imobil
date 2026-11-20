@@ -7,6 +7,7 @@ Três recursos já estão no código em produção, mas só funcionam depois de 
 | 1. Monitor | alerta (e-mail/WhatsApp) se a API, o site, o disco ou o backup tiverem problema, ou se o servidor cair | 15 min |
 | 2. E-mail | "Esqueci minha senha" e convite de membros por e-mail | 20 min + DNS |
 | 3. Cópia externa | backups copiados todo dia para fora do servidor, conferidos e protegidos contra apagamento | 25 min |
+| 4. Limite por IP | bloqueia tentativas de senha em massa a partir de um mesmo endereço | 5 min |
 
 Faça na ordem: o monitor passa a vigiar o resto. Cada parte vale para **produção e staging**. Os comandos usam a
 produção (`/opt/sysordem-imobil`); repita no staging (`/opt/sysordem-imobil-staging`) trocando o que estiver indicado.
@@ -154,11 +155,34 @@ No dia seguinte ao das 03h15, o backup novo aparece lá também.
 
 ---
 
+## Parte 4: Limite por IP (login, senha, cadastro, contato)
+
+Um segredo compartilhado entre o site e a API, para o site repassar o IP do visitante com assinatura.
+```bash
+cd /opt/sysordem-imobil
+cp .env .env.bak-$(date +%Y%m%d)
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"   # gera o segredo — copie a saída
+nano .env
+```
+```
+CLIENT_IP_SECRET=<o valor gerado acima>
+```
+Use um valor **diferente** no staging.
+```bash
+deploy/deploy.sh "$(cat .deploy/current_tag)"   # o site e a API passam a usar o segredo
+```
+**Conferir:** entre normalmente pelo site e confirme que funciona. Não precisa testar o bloqueio na produção: o CI já
+testa, e são 20 erros de senha em 15 minutos a partir do mesmo endereço. Se algo der errado, apague a linha e
+reimplante: os limites por IP desligam e os limites por e-mail continuam.
+
+---
+
 ## Conferência final
 - [ ] healthchecks.io: os dois checks verdes há pelo menos 15 min.
 - [ ] Produção e staging: "Esqueci minha senha" entrega o e-mail e o link funciona.
 - [ ] R2: arquivos de `producao/` e `staging/` presentes e `deploy/monitor.sh` sem reclamar da cópia externa.
 - [ ] Chaves dos backups guardadas fora do servidor (gerenciador de senhas).
+- [ ] `CLIENT_IP_SECRET` nos dois ambientes (valores diferentes) e login funcionando.
 - [ ] `HISTORICO_OPERACIONAL.md` particular atualizado: contas criadas (healthchecks, SMTP, Cloudflare) e onde
   estão as credenciais, nunca os valores.
 

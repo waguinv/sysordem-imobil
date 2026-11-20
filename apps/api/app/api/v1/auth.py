@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.schemas import LoginIn, LoginOut, MfaLoginIn, SwitchTenantIn, TokenOut
 from app.auth.deps import AuthContext, get_auth
+from app.core.client_ip import client_ip
 from app.core.config import get_settings
 from app.core.db import DB_DEPENDS, set_tenant
 from app.core.security import (
@@ -17,7 +18,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models import Membership, Tenant, User
-from app.services import audit, login_throttle, mfa, passwords
+from app.services import audit, ip_throttle, login_throttle, mfa, passwords
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -54,7 +55,12 @@ def _active_tenant(db: Session, slug: str) -> Tenant | None:
 
 
 @router.post("/login", response_model=LoginOut)
-def login(body: LoginIn, db: Session = DB_DEPENDS) -> LoginOut:
+def login(body: LoginIn, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)) -> LoginOut:
+    if ip_throttle.blocked("login", ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitas tentativas a partir deste endereço. Aguarde alguns minutos.",
+        )
     if login_throttle.is_blocked(body.tenant_slug, body.email):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Muitas tentativas")
 
@@ -67,6 +73,7 @@ def login(body: LoginIn, db: Session = DB_DEPENDS) -> LoginOut:
         result = _issue(db, user=user, tenant=tenant)
     if result is None or tenant is None or user is None:
         login_throttle.register_failure(body.tenant_slug, body.email)
+        ip_throttle.hit("login", ip)
         raise _INVALID
 
     login_throttle.reset(body.tenant_slug, body.email)
@@ -90,8 +97,13 @@ def _mfa_key(user_id: uuid.UUID) -> tuple[str, str]:
 
 
 @router.post("/mfa/login", response_model=TokenOut)
-def mfa_login(body: MfaLoginIn, db: Session = DB_DEPENDS) -> TokenOut:
+def mfa_login(body: MfaLoginIn, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)) -> TokenOut:
     """2ª etapa do login: o código do aplicativo (ou de recuperação) troca o desafio pelo token."""
+    if ip_throttle.blocked("login", ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitas tentativas a partir deste endereço. Aguarde alguns minutos.",
+        )
     try:
         claims = decode_mfa_token(body.mfa_token)
         user_id = uuid.UUID(claims["sub"])
@@ -110,6 +122,7 @@ def mfa_login(body: MfaLoginIn, db: Session = DB_DEPENDS) -> TokenOut:
     method = mfa.verify(db, user.id, body.code)
     if method is None:
         login_throttle.register_failure(*_mfa_key(user_id))
+        ip_throttle.hit("login", ip)
         raise _BAD_CODE
     result = _issue(db, user=user, tenant=tenant)
     if result is None:  # vínculo desativado entre a senha e o código
