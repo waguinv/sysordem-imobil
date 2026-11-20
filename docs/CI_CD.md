@@ -184,6 +184,8 @@ A restauração é testada a cada PR no job `drill` do CI (backup → restore �
 `scripts/verify_restore.py`) — ver [REVISAO_SEGURANCA.md](REVISAO_SEGURANCA.md).
 
 ## Monitoramento e alertas
+> Para ligar no servidor junto com o e-mail e a cópia externa: [ROTEIRO_SERVIDOR.md](ROTEIRO_SERVIDOR.md).
+
 Duas camadas:
 - **API: `/ops/status`.** Rota interna, **fora do nginx** (o nginx só expõe os webhooks e o `/health`) e protegida por
   `OPS_TOKEN` (cabeçalho `X-Ops-Token`; sem o token configurado, ou com token errado, responde 404). Responde **503**

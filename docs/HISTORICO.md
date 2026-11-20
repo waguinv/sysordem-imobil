@@ -88,6 +88,8 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 - Testes: 323 na API (pytest, com PostgreSQL real e RLS) e 28 na web (Vitest). CI: api, web, infra e drill.
 
 ## Pendências (em ordem sugerida)
+> Monitor, e-mail e cópia externa dos backups: passo a passo único em [ROTEIRO_SERVIDOR.md](ROTEIRO_SERVIDOR.md).
+
 1. **Loteadoras:** ligar a conta Asaas de produção de cada empresa (Configurações → Recebimentos) e cadastrar o CNPJ
    (exigido para gerar a fatura da assinatura).
 2. **SysOrdem Saúde:** confirmar que ele ignora os pagamentos do Imobil que chegam ao webhook dele (a conta Asaas é a mesma).
