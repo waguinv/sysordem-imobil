@@ -1,5 +1,6 @@
 "use server";
 
+import { clientIpHeaders } from "@/lib/client-ip";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -13,7 +14,7 @@ async function publicPost(path: string, body: unknown): Promise<Response | null>
   try {
     return await fetch(`${API_URL}/api/v1${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
       body: JSON.stringify(body),
       cache: "no-store",
     });

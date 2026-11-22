@@ -49,6 +49,8 @@ services:
       PUBLIC_API_URL: ${PUBLIC_API_URL:-}
       # Monitoramento: token da rota interna /ops/status (deploy/monitor.sh)
       OPS_TOKEN: ${OPS_TOKEN:-}
+      # Limites por IP: o web assina o IP do visitante com este segredo (o mesmo nos dois serviços)
+      CLIENT_IP_SECRET: ${CLIENT_IP_SECRET:-}
       # E-mail da API (redefinir senha, convite) — mesmas SMTP_* do Documenso
       PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -77,6 +79,7 @@ services:
     build: ./apps/web
     environment:
       API_INTERNAL_URL: http://api:8000
+      CLIENT_IP_SECRET: ${CLIENT_IP_SECRET:-}
     ports: ["${WEB_PORT:-3000}:3000"]
     depends_on:
       api:

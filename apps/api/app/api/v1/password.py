@@ -11,9 +11,10 @@ from sqlalchemy.orm import Session
 from app.api.v1.auth import _active_tenant, _issue
 from app.api.v1.schemas import TokenOut
 from app.auth.deps import AuthContext, get_auth
+from app.core.client_ip import client_ip
 from app.core.db import DB_DEPENDS, set_tenant
 from app.models import Membership
-from app.services import audit, email, login_throttle
+from app.services import audit, email, ip_throttle, login_throttle
 from app.services import passwords as svc
 
 router = APIRouter(prefix="/auth/password", tags=["auth"])
@@ -85,10 +86,12 @@ def change_password(body: ChangeIn, ctx: AuthContext = Depends(get_auth)) -> Tok
 
 
 @router.post("/forgot", response_model=ForgotOut, status_code=202)
-def forgot(body: ForgotIn, background: BackgroundTasks, db: Session = DB_DEPENDS) -> ForgotOut:
+def forgot(
+    body: ForgotIn, background: BackgroundTasks, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)
+) -> ForgotOut:
     """Sempre a mesma resposta, exista ou não a conta (não revela e-mails cadastrados)."""
     out = ForgotOut(email_enabled=email.enabled())
-    if not email.enabled() or not svc.allow_request(body.email):
+    if not email.enabled() or not ip_throttle.take("senha", ip) or not svc.allow_request(body.email):
         return out
     user = svc.find_user(db, body.email)
     if user is None or not user.is_active:
@@ -127,12 +130,18 @@ def token_info(token: str = Query(min_length=10, max_length=200), db: Session = 
 
 
 @router.post("/reset", response_model=ResetOut)
-def reset(body: ResetIn, db: Session = DB_DEPENDS) -> ResetOut:
+def reset(body: ResetIn, db: Session = DB_DEPENDS, ip: str | None = Depends(client_ip)) -> ResetOut:
     """Define a senha pelo link (redefinição ou convite). Encerra as sessões abertas; o MFA continua."""
+    if ip_throttle.blocked("login", ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitas tentativas a partir deste endereço. Aguarde alguns minutos.",
+        )
     try:
         info = svc.consume(db, body.token, new_password=body.new_password)
     except svc.PasswordError as e:
         if "Link" in str(e):
+            ip_throttle.hit("login", ip)  # adivinhar links conta como erro de login
             raise _BAD_LINK from None
         raise _error(e) from None
     slug = None

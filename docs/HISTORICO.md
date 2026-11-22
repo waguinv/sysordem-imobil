@@ -100,4 +100,5 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 7. **Disco da VPS:** acompanhar. É ocupado principalmente por imagens de outros sistemas.
 8. **Segurança de acesso:** verificação em duas etapas, troca de senha, "esqueci minha senha" e convite por e-mail entregues. **Falta configurar no servidor:** `SMTP_*` e `PUBLIC_WEB_URL` no `.env` de cada ambiente. Sem isso, o "esqueci minha senha" avisa para procurar o administrador e o convite exige senha inicial.
 9. **Monitoramento e alertas:** pronto no código (`/ops/status` na API e `deploy/monitor.sh` no servidor, com aviso ao healthchecks.io). **Falta configurar no servidor:** `OPS_TOKEN` e `MONITOR_HEALTHCHECK_URL` no `.env` e a linha do cron (passo a passo em CI_CD.md → Monitoramento).
-10. **Demais decisões abertas:** lista completa em [DECISOES_PENDENTES.md](DECISOES_PENDENTES.md).
+10. **Limite por IP:** pronto no código (login, MFA, portal, links, "esqueci", cadastro e contato). **Falta configurar no servidor:** `CLIENT_IP_SECRET` (parte 4 do ROTEIRO_SERVIDOR.md).
+11. **Demais decisões abertas:** lista completa em [DECISOES_PENDENTES.md](DECISOES_PENDENTES.md).
