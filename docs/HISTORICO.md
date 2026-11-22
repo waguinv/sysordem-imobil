@@ -83,7 +83,7 @@ Ordem cronológica. Os detalhes técnicos de cada parte estão nos documentos de
 
 ## Estado atual
 - `main` = `e6e7fc4`; sem PRs abertos.
-- Produção em `sha-e6e7fc4` (19/11: monitoramento e alertas; 17/11: verificação em duas etapas e senha por e-mail; 16/11: estorno automático e cópia externa dos backups). O staging acompanha a `main`.
+- Produção em `sha-c018d2e` (22/11: limites por IP, que só passam a valer com o `CLIENT_IP_SECRET` configurado; 19/11: monitoramento e alertas; 17/11: verificação em duas etapas e senha por e-mail; 16/11: estorno automático e cópia externa dos backups). O staging acompanha a `main`.
 - Migrations até **0019**.
 - Testes: 323 na API (pytest, com PostgreSQL real e RLS) e 28 na web (Vitest). CI: api, web, infra e drill.
 
